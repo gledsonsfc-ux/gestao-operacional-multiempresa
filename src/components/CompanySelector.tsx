@@ -6,7 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, Briefcase, Layers } from 'lucide-react'
+import { Layers } from 'lucide-react'
+import { InteligenciaLogo, HammerLogo } from '@/components/BrandLogos'
 
 interface CompanySelectorProps {
   className?: string
@@ -17,44 +18,55 @@ export function CompanySelector({ className = '', compact = false }: CompanySele
   const { empresas, selectedEmpresaId, setSelectedEmpresaId, canViewConsolidado } = useEmpresa()
 
   return (
-    <div className={`flex flex-col gap-1 ${className}`}>
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       {!compact && (
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-1">
-          Contexto Operacional
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-0.5">
+          Visão Atual
         </span>
       )}
       <Select value={selectedEmpresaId} onValueChange={(val) => setSelectedEmpresaId(val)}>
-        <SelectTrigger className="w-full bg-slate-900/60 border-slate-700 text-white hover:bg-slate-800/80 focus:ring-amber-500 text-xs sm:text-sm font-medium h-10 transition-colors">
+        <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 hover:bg-slate-50 focus:ring-2 focus:ring-[#004B87] text-xs font-semibold h-10 transition-colors shadow-sm">
           <SelectValue placeholder="Selecione a empresa" />
         </SelectTrigger>
-        <SelectContent className="bg-slate-900 border-slate-700 text-slate-100 shadow-2xl">
+        <SelectContent className="bg-white border-slate-200 text-slate-800 shadow-xl rounded-lg">
           {canViewConsolidado && (
             <SelectItem
               value="consolidado"
-              className="hover:bg-slate-800 focus:bg-slate-800 focus:text-amber-400 py-2.5 cursor-pointer font-semibold border-b border-slate-800"
+              className="hover:bg-slate-100 focus:bg-slate-100 focus:text-[#004B87] py-2.5 cursor-pointer font-bold border-b border-slate-100 text-xs"
             >
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-amber-400" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded bg-[#004B87]/10 flex items-center justify-center text-[#004B87]">
+                  <Layers className="w-3.5 h-3.5" />
+                </div>
                 <span>Visão Consolidada (Grupo)</span>
               </div>
             </SelectItem>
           )}
-          {empresas.map((emp) => (
-            <SelectItem
-              key={emp.id}
-              value={emp.id}
-              className="hover:bg-slate-800 focus:bg-slate-800 focus:text-white py-2.5 cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                {emp.tipo === 'seguranca' ? (
-                  <Shield className="w-4 h-4 text-emerald-400" />
-                ) : (
-                  <Briefcase className="w-4 h-4 text-sky-400" />
-                )}
-                <span>{emp.nome}</span>
-              </div>
-            </SelectItem>
-          ))}
+          {empresas.map((emp) => {
+            const isHammer =
+              emp.tipo === 'seguranca' ||
+              emp.slug === 'hammer-seguranca' ||
+              emp.nome.toLowerCase().includes('hammer')
+
+            return (
+              <SelectItem
+                key={emp.id}
+                value={emp.id}
+                className="hover:bg-slate-100 focus:bg-slate-100 focus:text-slate-900 py-2.5 cursor-pointer text-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                    {isHammer ? (
+                      <HammerLogo size="sm" variant="icon" />
+                    ) : (
+                      <InteligenciaLogo size="sm" variant="icon" />
+                    )}
+                  </div>
+                  <span className="font-semibold text-slate-800">{emp.nome}</span>
+                </div>
+              </SelectItem>
+            )
+          })}
         </SelectContent>
       </Select>
     </div>
