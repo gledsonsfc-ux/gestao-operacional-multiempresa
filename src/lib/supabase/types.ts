@@ -61,9 +61,11 @@ export type Database = {
       }
       colaboradores: {
         Row: {
+          carga_horaria_mensal: number | null
           cargo: string
           cnv_numero: string | null
           cnv_validade: string | null
+          codigo_rh: string | null
           cpf: string
           created_at: string
           curso_formacao: boolean | null
@@ -85,6 +87,7 @@ export type Database = {
           posto_id: string | null
           proximo_vencimento_reciclagem: string | null
           reciclagem: boolean | null
+          situacao_rh: string | null
           status: string
           tamanho_calca: string | null
           tamanho_camisa: string | null
@@ -96,9 +99,11 @@ export type Database = {
           valor_hora_base: number
         }
         Insert: {
+          carga_horaria_mensal?: number | null
           cargo: string
           cnv_numero?: string | null
           cnv_validade?: string | null
+          codigo_rh?: string | null
           cpf: string
           created_at?: string
           curso_formacao?: boolean | null
@@ -120,6 +125,7 @@ export type Database = {
           posto_id?: string | null
           proximo_vencimento_reciclagem?: string | null
           reciclagem?: boolean | null
+          situacao_rh?: string | null
           status?: string
           tamanho_calca?: string | null
           tamanho_camisa?: string | null
@@ -131,9 +137,11 @@ export type Database = {
           valor_hora_base?: number
         }
         Update: {
+          carga_horaria_mensal?: number | null
           cargo?: string
           cnv_numero?: string | null
           cnv_validade?: string | null
+          codigo_rh?: string | null
           cpf?: string
           created_at?: string
           curso_formacao?: boolean | null
@@ -155,6 +163,7 @@ export type Database = {
           posto_id?: string | null
           proximo_vencimento_reciclagem?: string | null
           reciclagem?: boolean | null
+          situacao_rh?: string | null
           status?: string
           tamanho_calca?: string | null
           tamanho_camisa?: string | null

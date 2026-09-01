@@ -35,8 +35,10 @@ import {
   Filter,
   Eye,
   Edit,
+  Upload,
 } from 'lucide-react'
 import { formatCPF } from '@/lib/formatters'
+import { ImportColaboradoresModal } from '@/components/ImportColaboradoresModal'
 
 export default function ColaboradoresList() {
   const { selectedEmpresaId, isConsolidado } = useEmpresa()
@@ -45,6 +47,7 @@ export default function ColaboradoresList() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [loading, setLoading] = useState(true)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
@@ -134,13 +137,23 @@ export default function ColaboradoresList() {
             Gerenciamento completo do efetivo operacional e administrativo com histórico auditável.
           </p>
         </div>
-        <Button
-          onClick={() => navigate('/colaboradores/novo')}
-          className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs h-9 shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Novo Colaborador
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsImportModalOpen(true)}
+            className="border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold text-xs h-9 shadow-sm"
+          >
+            <Upload className="w-4 h-4 mr-1.5 text-amber-500" />
+            Importar colaboradores
+          </Button>
+          <Button
+            onClick={() => navigate('/colaboradores/novo')}
+            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs h-9 shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Novo Colaborador
+          </Button>
+        </div>
       </div>
 
       {/* Filters Card */}
@@ -418,6 +431,15 @@ export default function ColaboradoresList() {
           </div>
         </div>
       </Card>
+
+      {/* Modal de Importação de Colaboradores */}
+      <ImportColaboradoresModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          loadData()
+        }}
+      />
     </div>
   )
 }
