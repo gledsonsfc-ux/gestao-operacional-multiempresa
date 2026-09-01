@@ -38,9 +38,17 @@ export const EmpresaProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchEmpresas = async () => {
     try {
-      const { data, error } = await supabase.from('empresas').select('*').order('nome')
+      const { data, error } = await supabase.from('empresas').select('*')
       if (error) throw error
-      const list = (data as Empresa[]) || []
+      const rawList = (data as Empresa[]) || []
+      // Ordem prioritária das empresas: 1. Hammer Segurança Privada, 2. Inteligência e Serviços
+      const list = [...rawList].sort((a, b) => {
+        const isHammerA = a.slug?.includes('hammer') || a.nome.toLowerCase().includes('hammer')
+        const isHammerB = b.slug?.includes('hammer') || b.nome.toLowerCase().includes('hammer')
+        if (isHammerA && !isHammerB) return -1
+        if (!isHammerA && isHammerB) return 1
+        return a.nome.localeCompare(b.nome)
+      })
       setEmpresas(list)
 
       // Default selection logic

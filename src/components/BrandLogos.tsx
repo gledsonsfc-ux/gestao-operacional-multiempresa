@@ -1,4 +1,5 @@
 import React from 'react'
+import hammerLogoImg from '@/assets/file000000009990820e9ed02e6aa20479a7-a4996.png'
 
 interface BrandLogoProps {
   className?: string
@@ -148,108 +149,38 @@ export function HammerLogo({
   variant = 'full',
   showSlogan = false,
 }: BrandLogoProps) {
+  // Tamanhos da imagem oficial preservando proporções
+  const imgSizeClasses = {
+    sm: 'h-8 max-w-[140px]',
+    md: 'h-10 max-w-[180px]',
+    lg: 'h-16 max-w-[240px]',
+    xl: 'h-24 sm:h-28 max-w-[320px]',
+  }
+
   const iconSizeClasses = {
-    sm: 'w-7 h-7',
-    md: 'w-9 h-9',
-    lg: 'w-16 h-16',
-    xl: 'w-24 h-24',
+    sm: 'h-7 w-7',
+    md: 'h-9 w-9',
+    lg: 'h-14 w-14',
+    xl: 'h-20 w-20',
   }
-
-  const textSizeClasses = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-xl',
-    xl: 'text-3xl',
-  }
-
-  const subSizeClasses = {
-    sm: 'text-[7px] tracking-[0.2em]',
-    md: 'text-[8.5px] tracking-[0.25em]',
-    lg: 'text-xs tracking-[0.3em]',
-    xl: 'text-sm tracking-[0.35em]',
-  }
-
-  const IconSymbol = () => (
-    <svg
-      viewBox="0 0 100 115"
-      className={`${iconSizeClasses[size]} shrink-0 drop-shadow-sm`}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Escudo Estilo Brasão de Segurança */}
-      <path
-        d="M50 3 L88 16 V55 C88 88 50 110 50 110 C50 110 12 88 12 55 V16 L50 3 Z"
-        fill="#0a0f1d"
-        stroke="#1e293b"
-        strokeWidth="3"
-      />
-      {/* Borda interna refinada */}
-      <path
-        d="M50 10 L82 21 V54 C82 82 50 102 50 102 C50 102 18 82 18 54 V21 L50 10 Z"
-        stroke="#ffffff"
-        strokeWidth="2"
-        fill="none"
-      />
-
-      {/* Texto HAMMER dentro do brasão se em tamanho maior */}
-      <text
-        x="50"
-        y="36"
-        textAnchor="middle"
-        fill="#ffffff"
-        fontSize="12"
-        fontWeight="900"
-        letterSpacing="1.5"
-        fontFamily="sans-serif"
-      >
-        HAMMER
-      </text>
-      <line x1="24" y1="41" x2="76" y2="41" stroke="#ffffff" strokeWidth="1" />
-      <text
-        x="50"
-        y="48"
-        textAnchor="middle"
-        fill="#94a3b8"
-        fontSize="5.5"
-        fontWeight="700"
-        letterSpacing="1"
-        fontFamily="sans-serif"
-      >
-        SEGURANÇA PRIVADA
-      </text>
-
-      {/* Silhueta / Elemento de proteção / Torre de vigilância / Câmera */}
-      <g transform="translate(25, 54) scale(0.85)" fill="#ffffff">
-        <path d="M29 6 L37 12 V18 L32 17 V36 H26 V24 H18 V36 H12 V17 L7 18 V12 L15 6 Z" />
-        <circle cx="22" cy="14" r="3" fill="#0a0f1d" />
-        <rect x="18" y="27" width="8" height="9" fill="#0a0f1d" />
-      </g>
-    </svg>
-  )
 
   if (variant === 'icon') {
-    return <IconSymbol />
+    return (
+      <img
+        src={hammerLogoImg}
+        alt="Hammer Segurança Privada"
+        className={`${iconSizeClasses[size]} object-contain shrink-0 ${className}`}
+      />
+    )
   }
 
   return (
     <div className={`flex flex-col items-start ${className}`}>
-      <div className="flex items-center gap-3">
-        <IconSymbol />
-        <div className="flex flex-col leading-none">
-          <span
-            className={`font-black tracking-tight text-slate-900 uppercase font-sans ${textSizeClasses[size]}`}
-          >
-            HAMMER
-          </span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="h-[1.5px] w-3 bg-slate-900" />
-            <span className={`font-bold text-slate-700 uppercase ${subSizeClasses[size]}`}>
-              SEGURANÇA PRIVADA
-            </span>
-            <span className="h-[1.5px] w-3 bg-slate-900" />
-          </div>
-        </div>
-      </div>
+      <img
+        src={hammerLogoImg}
+        alt="Hammer Segurança Privada"
+        className={`${imgSizeClasses[size]} w-auto object-contain shrink-0 drop-shadow-xs`}
+      />
       {showSlogan && (
         <p className="mt-3 text-xs sm:text-sm font-bold text-slate-800 tracking-wide uppercase">
           Protegemos pessoas, patrimônio e o que realmente importa

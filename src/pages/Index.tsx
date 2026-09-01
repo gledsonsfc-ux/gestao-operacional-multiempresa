@@ -419,25 +419,25 @@ export default function Index() {
             </p>
           </div>
 
-          {/* Logos Oficiais e Slogans Lado a Lado no Topo */}
+          {/* Logos Oficiais e Slogans Lado a Lado no Topo: 1. HAMMER SEGURANÇA PRIVADA primeiro, 2. INTELIGÊNCIA E SERVIÇOS em segundo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/60 p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs">
-            {/* Lado Esquerdo: Inteligência e Serviços */}
+            {/* 1. Lado Esquerdo: Hammer Segurança Privada */}
             <div className="flex flex-col items-center text-center justify-center space-y-4 md:border-r md:border-slate-200 md:pr-6">
-              <div className="transform transition-transform hover:scale-105 duration-300">
-                <InteligenciaLogo size="xl" variant="full" />
-              </div>
-              <p className="text-xs sm:text-sm font-extrabold text-[#004B87] uppercase tracking-wider">
-                INTELIGÊNCIA EM GESTÃO, EXCELÊNCIA EM SERVIÇOS
-              </p>
-            </div>
-
-            {/* Lado Direito: Hammer Segurança */}
-            <div className="flex flex-col items-center text-center justify-center space-y-4 md:pl-6">
               <div className="transform transition-transform hover:scale-105 duration-300">
                 <HammerLogo size="xl" variant="full" />
               </div>
               <p className="text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 PROTEGEMOS PESSOAS, PATRIMÔNIO E O QUE REALMENTE IMPORTA
+              </p>
+            </div>
+
+            {/* 2. Lado Direito: Inteligência e Serviços */}
+            <div className="flex flex-col items-center text-center justify-center space-y-4 md:pl-6">
+              <div className="transform transition-transform hover:scale-105 duration-300">
+                <InteligenciaLogo size="xl" variant="full" />
+              </div>
+              <p className="text-xs sm:text-sm font-extrabold text-[#004B87] uppercase tracking-wider">
+                INTELIGÊNCIA EM GESTÃO, EXCELÊNCIA EM SERVIÇOS
               </p>
             </div>
           </div>
@@ -546,9 +546,75 @@ export default function Index() {
             </Card>
           </div>
 
-          {/* Divisões por Empresa Lado a Lado (Cards Grandes) */}
+          {/* Divisões por Empresa Lado a Lado (Cards Grandes) - 1. HAMMER SEGURANÇA primeiro, 2. INTELIGÊNCIA E SERVIÇOS segundo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Painel Inteligência e Serviços */}
+            {/* 1. Painel Hammer Segurança Privada */}
+            <Card className="border-slate-200 bg-white shadow-sm rounded-xl overflow-hidden hover:border-slate-800 transition-all">
+              <div className="p-5 sm:p-6 space-y-6">
+                {/* Header com Logo + Badge Empresa Ativa */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <HammerLogo size="md" variant="full" />
+                  </div>
+                  <Badge className="bg-slate-900 text-white hover:bg-black text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                    Empresa Ativa
+                  </Badge>
+                </div>
+
+                {/* Métricas Internas da Hammer */}
+                <div className="grid grid-cols-4 gap-2 text-center pt-2 border-t border-slate-100">
+                  <div>
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      COLABORADORES
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
+                      {stats.hammerStats.colaboradoresAtivos}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      POSTOS / CLIENTES
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
+                      {stats.hammerStats.postosAtivos}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      ESCALAS ATIVAS
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
+                      {stats.hammerStats.escalasAtivas}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      PENDÊNCIAS
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-rose-600 mt-1 block">
+                      {stats.hammerStats.pendenciasCount}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Botão Acessar Empresa Preto */}
+                <Button
+                  onClick={() => {
+                    if (stats.hammerStats.empresaId) {
+                      setSelectedEmpresaId(stats.hammerStats.empresaId)
+                    } else if (hammerEmpresa) {
+                      setSelectedEmpresaId(hammerEmpresa.id)
+                    }
+                  }}
+                  className="w-full bg-slate-900 hover:bg-black text-white font-bold text-xs h-10 transition-colors rounded-lg flex items-center justify-center gap-1.5"
+                >
+                  <span>Acessar empresa</span>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </Card>
+
+            {/* 2. Painel Inteligência e Serviços */}
             <Card className="border-slate-200 bg-white shadow-sm rounded-xl overflow-hidden hover:border-[#004B87]/50 transition-all">
               <div className="p-5 sm:p-6 space-y-6">
                 {/* Header com Logo + Badge Empresa Ativa */}
@@ -608,72 +674,6 @@ export default function Index() {
                     }
                   }}
                   className="w-full border-slate-200 text-slate-800 hover:bg-[#004B87] hover:text-white font-bold text-xs h-10 transition-colors rounded-lg flex items-center justify-center gap-1.5"
-                >
-                  <span>Acessar empresa</span>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-
-            {/* Painel Hammer Segurança */}
-            <Card className="border-slate-200 bg-white shadow-sm rounded-xl overflow-hidden hover:border-slate-800 transition-all">
-              <div className="p-5 sm:p-6 space-y-6">
-                {/* Header com Logo + Badge Empresa Ativa */}
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <HammerLogo size="md" variant="full" />
-                  </div>
-                  <Badge className="bg-slate-900 text-white hover:bg-black text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                    Empresa Ativa
-                  </Badge>
-                </div>
-
-                {/* Métricas Internas da Hammer */}
-                <div className="grid grid-cols-4 gap-2 text-center pt-2 border-t border-slate-100">
-                  <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      COLABORADORES
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
-                      {stats.hammerStats.colaboradoresAtivos}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      POSTOS / CLIENTES
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
-                      {stats.hammerStats.postosAtivos}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      ESCALAS ATIVAS
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
-                      {stats.hammerStats.escalasAtivas}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      PENDÊNCIAS
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-rose-600 mt-1 block">
-                      {stats.hammerStats.pendenciasCount}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Botão Acessar Empresa Preto */}
-                <Button
-                  onClick={() => {
-                    if (stats.hammerStats.empresaId) {
-                      setSelectedEmpresaId(stats.hammerStats.empresaId)
-                    } else if (hammerEmpresa) {
-                      setSelectedEmpresaId(hammerEmpresa.id)
-                    }
-                  }}
-                  className="w-full bg-slate-900 hover:bg-black text-white font-bold text-xs h-10 transition-colors rounded-lg flex items-center justify-center gap-1.5"
                 >
                   <span>Acessar empresa</span>
                   <ChevronRight className="w-4 h-4" />

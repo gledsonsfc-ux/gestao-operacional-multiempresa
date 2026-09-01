@@ -133,66 +133,8 @@ export default function Layout() {
         </button>
       </div>
 
-      {/* Seção 1: Inteligência e Serviços */}
+      {/* Seção 1: Hammer Segurança Privada */}
       <div className="p-3 border-b border-slate-100 bg-slate-50/40">
-        <button
-          type="button"
-          onClick={() => {
-            if (inteligenciaEmpresa) {
-              setSelectedEmpresaId(inteligenciaEmpresa.id)
-            } else {
-              const intObj = empresas.find(
-                (e) =>
-                  e.slug?.includes('inteligencia') || e.nome.toLowerCase().includes('inteligência'),
-              )
-              if (intObj) setSelectedEmpresaId(intObj.id)
-            }
-          }}
-          className={`w-full text-left p-2 rounded-lg transition-all border ${
-            isInteligencia
-              ? 'border-[#004B87]/40 bg-white shadow-xs'
-              : 'border-transparent hover:bg-white/80'
-          }`}
-        >
-          <InteligenciaLogo size="sm" variant="full" />
-        </button>
-
-        {/* Links quando Inteligência selecionada OU lista compacta consolidada */}
-        <div className="mt-2 space-y-0.5">
-          {navItems.slice(0, 9).map((item) => {
-            const isEmpresaActive = isInteligencia
-            const isRouteActive =
-              location.pathname === item.href ||
-              (item.href !== '/' && location.pathname.startsWith(item.href))
-            const isActive = isEmpresaActive && isRouteActive
-            const Icon = item.icon
-
-            return (
-              <NavLink
-                key={`int-${item.href}`}
-                to={item.href}
-                onClick={() => {
-                  if (inteligenciaEmpresa && !isInteligencia) {
-                    setSelectedEmpresaId(inteligenciaEmpresa.id)
-                  }
-                  setMobileOpen(false)
-                }}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[#004B87] text-white font-semibold'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{item.name}</span>
-              </NavLink>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Seção 2: Hammer Segurança */}
-      <div className="p-3 border-b border-slate-100 bg-slate-50/40 flex-1 overflow-y-auto">
         <button
           type="button"
           onClick={() => {
@@ -237,6 +179,64 @@ export default function Layout() {
                 className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
                   isActive
                     ? 'bg-slate-900 text-white font-semibold'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <span>{item.name}</span>
+              </NavLink>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Seção 2: Inteligência e Serviços */}
+      <div className="p-3 border-b border-slate-100 bg-slate-50/40 flex-1 overflow-y-auto">
+        <button
+          type="button"
+          onClick={() => {
+            if (inteligenciaEmpresa) {
+              setSelectedEmpresaId(inteligenciaEmpresa.id)
+            } else {
+              const intObj = empresas.find(
+                (e) =>
+                  e.slug?.includes('inteligencia') || e.nome.toLowerCase().includes('inteligência'),
+              )
+              if (intObj) setSelectedEmpresaId(intObj.id)
+            }
+          }}
+          className={`w-full text-left p-2 rounded-lg transition-all border ${
+            isInteligencia
+              ? 'border-[#004B87]/40 bg-white shadow-xs'
+              : 'border-transparent hover:bg-white/80'
+          }`}
+        >
+          <InteligenciaLogo size="sm" variant="full" />
+        </button>
+
+        {/* Links quando Inteligência selecionada */}
+        <div className="mt-2 space-y-0.5">
+          {navItems.slice(0, 9).map((item) => {
+            const isEmpresaActive = isInteligencia
+            const isRouteActive =
+              location.pathname === item.href ||
+              (item.href !== '/' && location.pathname.startsWith(item.href))
+            const isActive = isEmpresaActive && isRouteActive
+            const Icon = item.icon
+
+            return (
+              <NavLink
+                key={`int-${item.href}`}
+                to={item.href}
+                onClick={() => {
+                  if (inteligenciaEmpresa && !isInteligencia) {
+                    setSelectedEmpresaId(inteligenciaEmpresa.id)
+                  }
+                  setMobileOpen(false)
+                }}
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                  isActive
+                    ? 'bg-[#004B87] text-white font-semibold'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
