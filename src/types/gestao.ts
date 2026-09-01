@@ -101,6 +101,11 @@ export interface Colaborador {
   data_ultima_reciclagem?: string | null
   proximo_vencimento_reciclagem?: string | null
 
+  // Campos RH
+  codigo_rh?: string | null
+  carga_horaria_mensal?: number | null
+  situacao_rh?: string | null
+
   observacoes?: string | null
   created_at?: string
   updated_at?: string

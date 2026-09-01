@@ -151,7 +151,7 @@ export default function ColaboradoresList() {
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <Input
-                placeholder="Buscar por nome, CPF ou cargo..."
+                placeholder="Buscar por nome, CPF, cargo ou código RH..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 text-xs h-9"
@@ -214,12 +214,19 @@ export default function ColaboradoresList() {
                   Foto
                 </TableHead>
                 <TableHead className="text-xs font-bold text-slate-700">Nome / CPF</TableHead>
+                <TableHead className="text-xs font-bold text-slate-700">Código RH</TableHead>
                 {isConsolidado && (
                   <TableHead className="text-xs font-bold text-slate-700">Empresa</TableHead>
                 )}
                 <TableHead className="text-xs font-bold text-slate-700">Cargo / Função</TableHead>
                 <TableHead className="text-xs font-bold text-slate-700">Posto de Serviço</TableHead>
                 <TableHead className="text-xs font-bold text-slate-700">Escala / Turno</TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 text-center">
+                  Carga horária mensal
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 text-center">
+                  Situação RH
+                </TableHead>
                 <TableHead className="text-xs font-bold text-slate-700 text-center">
                   Status
                 </TableHead>
@@ -229,13 +236,13 @@ export default function ColaboradoresList() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-500">
+                  <TableCell colSpan={11} className="text-center py-10 text-xs text-slate-500">
                     Carregando colaboradores...
                   </TableCell>
                 </TableRow>
               ) : paginatedList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-xs text-slate-400">
+                  <TableCell colSpan={11} className="text-center py-12 text-xs text-slate-400">
                     <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     Nenhum colaborador encontrado com os filtros selecionados.
                   </TableCell>
@@ -266,6 +273,16 @@ export default function ColaboradoresList() {
                         {c.nome}
                       </div>
                       <div className="text-[11px] text-slate-500 font-mono">{formatCPF(c.cpf)}</div>
+                    </TableCell>
+
+                    <TableCell className="py-2.5 text-xs">
+                      {c.codigo_rh ? (
+                        <span className="font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                          {c.codigo_rh}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic">-</span>
+                      )}
                     </TableCell>
 
                     {isConsolidado && (
@@ -301,6 +318,24 @@ export default function ColaboradoresList() {
                     <TableCell className="py-2.5 text-xs text-slate-600">
                       <div>{c.escala?.nome || 'Escala Padrão'}</div>
                       <span className="text-[10px] text-slate-400">{c.turno}</span>
+                    </TableCell>
+
+                    <TableCell className="text-center py-2.5 text-xs text-slate-700">
+                      {c.carga_horaria_mensal ? (
+                        <span className="font-medium">{c.carga_horaria_mensal}h</span>
+                      ) : (
+                        <span className="text-slate-400 italic">-</span>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-center py-2.5 text-xs">
+                      {c.situacao_rh ? (
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {c.situacao_rh}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400 italic">-</span>
+                      )}
                     </TableCell>
 
                     <TableCell className="text-center py-2.5">{getStatusBadge(c.status)}</TableCell>

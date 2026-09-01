@@ -458,6 +458,48 @@ export default function ColaboradorDetail() {
                         className="text-xs"
                       />
                     </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-700">Código RH</Label>
+                      <Input
+                        value={formData.codigo_rh || ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, codigo_rh: e.target.value || null })
+                        }
+                        placeholder="Ex: 97"
+                        className="text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Carga horária mensal
+                      </Label>
+                      <Input
+                        type="number"
+                        value={formData.carga_horaria_mensal ?? ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            carga_horaria_mensal: e.target.value ? Number(e.target.value) : null,
+                          })
+                        }
+                        placeholder="Ex: 220"
+                        className="text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-700">Situação RH</Label>
+                      <Input
+                        value={formData.situacao_rh || ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, situacao_rh: e.target.value || null })
+                        }
+                        placeholder="Ex: 1"
+                        className="text-xs"
+                      />
+                    </div>
                   </div>
 
                   {isHammer && (
@@ -593,6 +635,26 @@ export default function ColaboradorDetail() {
                     <span className="text-slate-500">Valor Hora Base:</span>
                     <span className="font-bold text-amber-700">
                       {formatCurrency(colaborador.valor_hora_base)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-t border-slate-100">
+                    <span className="text-slate-500">Código RH:</span>
+                    <span className="font-semibold text-slate-800 font-mono">
+                      {colaborador.codigo_rh || '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">Carga horária mensal:</span>
+                    <span className="font-semibold text-slate-800">
+                      {colaborador.carga_horaria_mensal
+                        ? `${colaborador.carga_horaria_mensal}h`
+                        : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Situação RH:</span>
+                    <span className="font-semibold text-slate-800">
+                      {colaborador.situacao_rh || '-'}
                     </span>
                   </div>
                 </CardContent>

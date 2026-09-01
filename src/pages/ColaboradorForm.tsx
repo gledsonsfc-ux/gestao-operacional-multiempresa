@@ -64,6 +64,11 @@ export default function ColaboradorForm() {
   const [status, setStatus] = useState<'Ativo' | 'Inativo' | 'Férias' | 'Afastado'>('Ativo')
   const [valorHoraBase, setValorHoraBase] = useState('15.00')
 
+  // Campos RH
+  const [codigoRh, setCodigoRh] = useState('')
+  const [cargaHorariaMensal, setCargaHorariaMensal] = useState('')
+  const [situacaoRh, setSituacaoRh] = useState('')
+
   // VT
   const [numeroCartaoVT, setNumeroCartaoVT] = useState('')
   const [tipoTransporte, setTipoTransporte] = useState('Ônibus')
@@ -175,6 +180,9 @@ export default function ColaboradorForm() {
         horario: horario.trim() || null,
         turno,
         status,
+        codigo_rh: codigoRh.trim() || null,
+        carga_horaria_mensal: cargaHorariaMensal ? Number(cargaHorariaMensal) : null,
+        situacao_rh: situacaoRh.trim() || null,
         valor_hora_base: Number(valorHoraBase) || 15.0,
         numero_cartao_vt: numeroCartaoVT || null,
         tipo_transporte: tipoTransporte,
@@ -359,6 +367,45 @@ export default function ColaboradorForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="text-xs"
                   />
+                </div>
+              </div>
+
+              {/* Integração / Controle de RH */}
+              <div className="pt-2 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-700 mb-2.5">Dados de RH</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700">Código RH</Label>
+                    <Input
+                      placeholder="Ex: 97"
+                      value={codigoRh}
+                      onChange={(e) => setCodigoRh(e.target.value)}
+                      className="text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Carga horária mensal
+                    </Label>
+                    <Input
+                      type="number"
+                      placeholder="Ex: 220"
+                      value={cargaHorariaMensal}
+                      onChange={(e) => setCargaHorariaMensal(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700">Situação RH</Label>
+                    <Input
+                      placeholder="Ex: 1"
+                      value={situacaoRh}
+                      onChange={(e) => setSituacaoRh(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

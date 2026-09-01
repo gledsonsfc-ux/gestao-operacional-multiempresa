@@ -37,7 +37,7 @@ export const colaboradoresService = {
     }
     if (options?.search) {
       query = query.or(
-        `nome.ilike.%${options.search}%,cpf.ilike.%${options.search}%,cargo.ilike.%${options.search}%`,
+        `nome.ilike.%${options.search}%,cpf.ilike.%${options.search}%,cargo.ilike.%${options.search}%,codigo_rh.ilike.%${options.search}%`,
       )
     }
 
@@ -112,6 +112,9 @@ export const colaboradoresService = {
         'cnv_validade',
         'reciclagem',
         'data_ultima_reciclagem',
+        'codigo_rh',
+        'carga_horaria_mensal',
+        'situacao_rh',
       ]
       for (const field of keyFields) {
         const prevVal = String(auditInfo.previous[field] ?? '')
