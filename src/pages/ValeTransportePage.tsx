@@ -76,7 +76,7 @@ export default function ValeTransportePage() {
     setLoading(true)
     try {
       const [data, colabs] = await Promise.all([
-        valeTransporteService.list(selectedEmpresaId, competencia),
+        valeTransporteService.list(selectedEmpresaId, { competencia }),
         colaboradoresService.list(selectedEmpresaId),
       ])
       setVtList(data)

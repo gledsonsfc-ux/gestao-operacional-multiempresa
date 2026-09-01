@@ -46,7 +46,13 @@ import {
   Eye,
   History,
   Info,
+  CheckSquare,
+  Square,
+  Check,
+  X,
+  Layers,
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatCurrency, formatDateBR } from '@/lib/formatters'
 import { useToast } from '@/hooks/use-toast'
 import { getPermissions } from '@/lib/permissions'
@@ -83,6 +89,13 @@ export default function HorasExtrasList() {
   const [memoriaModalOpen, setMemoriaModalOpen] = useState(false)
   const [viewHE, setViewHE] = useState<HoraExtra | null>(null)
 
+  // Batch Selection & Modal
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [batchModalOpen, setBatchModalOpen] = useState(false)
+  const [batchDecisionType, setBatchDecisionType] = useState<'Aprovado' | 'Recusado'>('Aprovado')
+  const [batchMotivoRecusa, setBatchMotivoRecusa] = useState('')
+  const [savingBatch, setSavingBatch] = useState(false)
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -100,6 +113,7 @@ export default function HorasExtrasList() {
       setHorasExtras(heData)
       setPostos(postosData)
       setColaboradores(colabsData)
+      setSelectedIds([])
     } catch (err) {
       console.error('Erro ao carregar horas extras:', err)
     } finally {
@@ -159,6 +173,95 @@ export default function HorasExtrasList() {
       setSavingDecision(false)
     }
   }
+
+  // Batch handlers
+  const pendingHorasExtras = horasExtras.filter((h) => h.status === 'Pendente')
+  const allPendingSelected =
+    pendingHorasExtras.length > 0 && pendingHorasExtras.every((h) => selectedIds.includes(h.id))
+
+  const handleToggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(pendingHorasExtras.map((h) => h.id))
+    }
+  }
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    )
+  }
+
+  const openBatchModal = (type: 'Aprovado' | 'Recusado') => {
+    if (selectedIds.length === 0) return
+    setBatchDecisionType(type)
+    setBatchMotivoRecusa('')
+    setBatchModalOpen(true)
+  }
+
+  const handleConfirmBatchDecision = async () => {
+    if (selectedIds.length === 0) return
+    if (batchDecisionType === 'Recusado' && !batchMotivoRecusa.trim()) {
+      toast({
+        title: 'Motivo Obrigatório',
+        description: 'Informe o motivo da recusa em lote para os registros selecionados.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const itemsToProcess = horasExtras.filter(
+      (h) => selectedIds.includes(h.id) && h.status === 'Pendente',
+    )
+
+    if (itemsToProcess.length === 0) {
+      toast({
+        title: 'Nenhum registro pendente',
+        description: 'Os itens selecionados já foram processados.',
+        variant: 'destructive',
+      })
+      setBatchModalOpen(false)
+      return
+    }
+
+    setSavingBatch(true)
+    try {
+      await horasExtrasService.batchDecide(itemsToProcess, {
+        status: batchDecisionType,
+        motivo_recusa: batchDecisionType === 'Recusado' ? batchMotivoRecusa.trim() : undefined,
+        userId: user?.id,
+        userName: profile?.nome || 'Administrador',
+      })
+
+      toast({
+        title: `Ação em Lote Concluída`,
+        description: `${itemsToProcess.length} registro(s) de hora extra foram ${batchDecisionType.toLowerCase()}s com sucesso.`,
+      })
+      setBatchModalOpen(false)
+      setSelectedIds([])
+      loadData()
+    } catch (err: any) {
+      toast({
+        title: 'Erro na Ação em Lote',
+        description: err.message || 'Falha ao processar registros em lote.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingBatch(false)
+    }
+  }
+
+  // Calculate selected total summary
+  const selectedHEItems = horasExtras.filter((h) => selectedIds.includes(h.id))
+  const selectedTotalHours = selectedHEItems.reduce(
+    (sum, h) => sum + (Number(h.quantidade_horas) || 0),
+    0,
+  )
+  const selectedTotalValue = selectedHEItems.reduce(
+    (sum, h) => sum + (Number(h.valor_calculado) || 0),
+    0,
+  )
 
   // Totals of the filtered set
   const totalHoras = horasExtras.reduce((sum, h) => sum + (Number(h.quantidade_horas) || 0), 0)
@@ -320,12 +423,63 @@ export default function HorasExtrasList() {
         </CardContent>
       </Card>
 
+      {/* Batch Action Toolbar */}
+      {permissions.canApproveHorasExtras && selectedIds.length > 0 && (
+        <div className="p-3 bg-amber-500 text-white rounded-xl shadow-md flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 text-xs font-semibold">
+            <Layers className="w-4 h-4 text-amber-100 shrink-0" />
+            <span>
+              {selectedIds.length}{' '}
+              {selectedIds.length === 1 ? 'registro selecionado' : 'registros selecionados'} (
+              {selectedTotalHours.toFixed(1)}h • {formatCurrency(selectedTotalValue)})
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => openBatchModal('Aprovado')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-8 shadow-sm"
+            >
+              <Check className="w-3.5 h-3.5 mr-1" />
+              Aprovar Selecionados ({selectedIds.length})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openBatchModal('Recusado')}
+              className="bg-white hover:bg-rose-50 text-rose-600 border-rose-200 text-xs font-semibold h-8 shadow-sm"
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Recusar Selecionados ({selectedIds.length})
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds([])}
+              className="text-white hover:bg-amber-600 text-xs h-8 px-2"
+            >
+              Desmarcar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50 border-b border-slate-200">
               <TableRow>
+                {permissions.canApproveHorasExtras && (
+                  <TableHead className="w-10 text-center">
+                    <Checkbox
+                      checked={allPendingSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      disabled={pendingHorasExtras.length === 0}
+                      aria-label="Selecionar todos os pendentes"
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="text-xs font-bold text-slate-700">
                   Colaborador / Posto
                 </TableHead>
@@ -345,124 +499,234 @@ export default function HorasExtrasList() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-500">
+                  <TableCell
+                    colSpan={permissions.canApproveHorasExtras ? 9 : 8}
+                    className="text-center py-10 text-xs text-slate-500"
+                  >
                     Carregando registros de horas extras...
                   </TableCell>
                 </TableRow>
               ) : horasExtras.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-xs text-slate-400">
+                  <TableCell
+                    colSpan={permissions.canApproveHorasExtras ? 9 : 8}
+                    className="text-center py-12 text-xs text-slate-400"
+                  >
                     <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     Nenhum lançamento de hora extra encontrado para os filtros informados.
                   </TableCell>
                 </TableRow>
               ) : (
-                horasExtras.map((h) => (
-                  <TableRow key={h.id} className="hover:bg-slate-50">
-                    <TableCell className="py-2.5">
-                      <div className="font-semibold text-xs text-slate-900">
-                        {h.colaborador?.nome || 'Colaborador não identificado'}
-                      </div>
-                      <div className="text-[11px] text-slate-500">
-                        {h.posto?.nome || 'Base operacional'}
-                      </div>
-                    </TableCell>
+                horasExtras.map((h) => {
+                  const isPending = h.status === 'Pendente'
+                  const isSelected = selectedIds.includes(h.id)
 
-                    <TableCell className="py-2.5 text-xs text-slate-700">
-                      <div className="font-medium">{formatDateBR(h.data)}</div>
-                      <div className="text-[11px] text-slate-500">
-                        {h.entrada} às {h.saida}
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="py-2.5 text-xs font-bold text-slate-800">
-                      {h.quantidade_horas}h
-                    </TableCell>
-
-                    <TableCell className="py-2.5 text-xs text-slate-600">
-                      <span className="capitalize">{h.tipo_dia}</span> ({h.percentual}%)
-                      {h.ajuste_manual && (
-                        <span className="block text-[10px] text-amber-700 font-semibold">
-                          ⚠️ Ajustado Manual
-                        </span>
+                  return (
+                    <TableRow
+                      key={h.id}
+                      className={`hover:bg-slate-50 ${isSelected ? 'bg-amber-50/60' : ''}`}
+                    >
+                      {permissions.canApproveHorasExtras && (
+                        <TableCell className="text-center py-2.5">
+                          {isPending ? (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => handleToggleSelectOne(h.id)}
+                              aria-label={`Selecionar ${h.colaborador?.nome || 'registro'}`}
+                            />
+                          ) : (
+                            <span className="text-slate-300">•</span>
+                          )}
+                        </TableCell>
                       )}
-                    </TableCell>
 
-                    <TableCell className="py-2.5 text-xs">
-                      <div className="font-bold text-slate-900">
-                        {formatCurrency(h.valor_calculado)}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setViewHE(h)
-                          setMemoriaModalOpen(true)
-                        }}
-                        className="text-[10px] text-amber-600 hover:underline flex items-center gap-0.5"
-                      >
-                        <Info className="w-2.5 h-2.5" /> Memória
-                      </button>
-                    </TableCell>
+                      <TableCell className="py-2.5">
+                        <div className="font-semibold text-xs text-slate-900">
+                          {h.colaborador?.nome || 'Colaborador não identificado'}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {h.posto?.nome || 'Base operacional'}
+                        </div>
+                      </TableCell>
 
-                    <TableCell className="py-2.5 text-center">
-                      {h.origem === 'Formulário Público' ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] bg-sky-50 text-sky-700 border-sky-200"
-                        >
-                          <LinkIcon className="w-2.5 h-2.5 mr-1" /> Público
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] text-slate-600">
-                          Painel
-                        </Badge>
-                      )}
-                    </TableCell>
+                      <TableCell className="py-2.5 text-xs text-slate-700">
+                        <div className="font-medium">{formatDateBR(h.data)}</div>
+                        <div className="text-[11px] text-slate-500">
+                          {h.entrada} às {h.saida}
+                        </div>
+                      </TableCell>
 
-                    <TableCell className="py-2.5 text-center">{getStatusBadge(h.status)}</TableCell>
+                      <TableCell className="py-2.5 text-xs font-bold text-slate-800">
+                        {h.quantidade_horas}h
+                      </TableCell>
 
-                    <TableCell className="py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {permissions.canApproveHorasExtras && h.status === 'Pendente' && (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openDecisionModal(h, 'Aprovado')}
-                              className="h-7 w-7 text-emerald-600 hover:bg-emerald-50"
-                              title="Aprovar Hora Extra"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openDecisionModal(h, 'Recusado')}
-                              className="h-7 w-7 text-rose-600 hover:bg-rose-50"
-                              title="Recusar com Motivo"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </Button>
-                          </>
+                      <TableCell className="py-2.5 text-xs text-slate-600">
+                        <span className="capitalize">{h.tipo_dia}</span> ({h.percentual}%)
+                        {h.ajuste_manual && (
+                          <span className="block text-[10px] text-amber-700 font-semibold">
+                            ⚠️ Ajustado Manual
+                          </span>
                         )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => navigate(`/horas-extras/novo?editId=${h.id}`)}
-                          className="h-7 w-7 text-slate-500 hover:text-amber-600"
-                          title="Editar Registro / Ajuste Manual"
+                      </TableCell>
+
+                      <TableCell className="py-2.5 text-xs">
+                        <div className="font-bold text-slate-900">
+                          {formatCurrency(h.valor_calculado)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewHE(h)
+                            setMemoriaModalOpen(true)
+                          }}
+                          className="text-[10px] text-amber-600 hover:underline flex items-center gap-0.5"
                         >
-                          <FileText className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <Info className="w-2.5 h-2.5" /> Memória
+                        </button>
+                      </TableCell>
+
+                      <TableCell className="py-2.5 text-center">
+                        {h.origem === 'Formulário Público' ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-sky-50 text-sky-700 border-sky-200"
+                          >
+                            <LinkIcon className="w-2.5 h-2.5 mr-1" /> Público
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-slate-600">
+                            Painel
+                          </Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="py-2.5 text-center">
+                        {getStatusBadge(h.status)}
+                      </TableCell>
+
+                      <TableCell className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {permissions.canApproveHorasExtras && h.status === 'Pendente' && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => openDecisionModal(h, 'Aprovado')}
+                                className="h-7 w-7 text-emerald-600 hover:bg-emerald-50"
+                                title="Aprovar Hora Extra"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => openDecisionModal(h, 'Recusado')}
+                                className="h-7 w-7 text-rose-600 hover:bg-rose-50"
+                                title="Recusar com Motivo"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => navigate(`/horas-extras/novo?editId=${h.id}`)}
+                            className="h-7 w-7 text-slate-500 hover:text-amber-600"
+                            title="Editar Registro / Ajuste Manual"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
         </div>
       </Card>
+
+      {/* Batch Decision Dialog */}
+      <Dialog open={batchModalOpen} onOpenChange={setBatchModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-amber-500" />
+              {batchDecisionType === 'Aprovado'
+                ? 'Aprovação em Lote de Horas Extras'
+                : 'Recusa em Lote de Horas Extras'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Você está prestes a processar {selectedIds.length}{' '}
+              {selectedIds.length === 1 ? 'registro selecionado' : 'registros selecionados'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 space-y-1">
+              <div>
+                Registros Selecionados:{' '}
+                <strong className="text-slate-900">{selectedIds.length}</strong>
+              </div>
+              <div>
+                Total de Horas:{' '}
+                <strong className="text-slate-900">{selectedTotalHours.toFixed(2)}h</strong>
+              </div>
+              <div>
+                Valor Total:{' '}
+                <strong className="text-emerald-700">{formatCurrency(selectedTotalValue)}</strong>
+              </div>
+            </div>
+
+            {batchDecisionType === 'Recusado' ? (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Motivo da Recusa em Lote (Obrigatório) *
+                </Label>
+                <Input
+                  required
+                  placeholder="Ex: Horas extras não autorizadas para este período."
+                  value={batchMotivoRecusa}
+                  onChange={(e) => setBatchMotivoRecusa(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-slate-600">
+                Confirma a aprovação de todos os {selectedIds.length} registros selecionados? Cada
+                registro será atualizado com a data, horário e seu usuário como aprovador.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBatchModalOpen(false)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={savingBatch}
+              onClick={handleConfirmBatchDecision}
+              className={
+                batchDecisionType === 'Aprovado'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold'
+                  : 'bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold'
+              }
+            >
+              {savingBatch
+                ? 'Processando Lote...'
+                : `Confirmar ${batchDecisionType === 'Aprovado' ? 'Aprovação' : 'Recusa'} (${selectedIds.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Decision Modal */}
       <Dialog open={decisionModalOpen} onOpenChange={setDecisionModalOpen}>

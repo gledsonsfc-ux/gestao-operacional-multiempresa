@@ -44,7 +44,11 @@ import {
   AlertTriangle,
   User,
   Calendar,
+  Layers,
+  Check,
+  X,
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatDateBR, formatDateTimeBR } from '@/lib/formatters'
 import { useToast } from '@/hooks/use-toast'
 import { getPermissions } from '@/lib/permissions'
@@ -83,6 +87,15 @@ export default function TrocasPlantaoList() {
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [savingDecision, setSavingDecision] = useState(false)
 
+  // Batch Selection & Modal
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [batchModalOpen, setBatchModalOpen] = useState(false)
+  const [batchDecisionType, setBatchDecisionType] = useState<'Autorizada' | 'Recusada'>(
+    'Autorizada',
+  )
+  const [batchMotivoRecusa, setBatchMotivoRecusa] = useState('')
+  const [savingBatch, setSavingBatch] = useState(false)
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -103,6 +116,7 @@ export default function TrocasPlantaoList() {
       setTrocas(sorted)
       setColaboradores(colabsData.filter((c) => c.status === 'Ativo'))
       setPostos(postosData)
+      setSelectedIds([])
     } catch (err) {
       console.error('Erro ao carregar trocas:', err)
     } finally {
@@ -223,6 +237,84 @@ export default function TrocasPlantaoList() {
     }
   }
 
+  // Batch handlers
+  const pendingTrocas = trocas.filter((t) => t.status === 'Pendente')
+  const allPendingSelected =
+    pendingTrocas.length > 0 && pendingTrocas.every((t) => selectedIds.includes(t.id))
+
+  const handleToggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(pendingTrocas.map((t) => t.id))
+    }
+  }
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    )
+  }
+
+  const openBatchModal = (type: 'Autorizada' | 'Recusada') => {
+    if (selectedIds.length === 0) return
+    setBatchDecisionType(type)
+    setBatchMotivoRecusa('')
+    setBatchModalOpen(true)
+  }
+
+  const handleConfirmBatchDecision = async () => {
+    if (selectedIds.length === 0) return
+    if (batchDecisionType === 'Recusada' && !batchMotivoRecusa.trim()) {
+      toast({
+        title: 'Motivo Obrigatório',
+        description: 'Informe a justificativa da recusa das trocas selecionadas.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const idsToProcess = trocas
+      .filter((t) => selectedIds.includes(t.id) && t.status === 'Pendente')
+      .map((t) => t.id)
+
+    if (idsToProcess.length === 0) {
+      toast({
+        title: 'Nenhum registro pendente',
+        description: 'Os itens selecionados já foram processados.',
+        variant: 'destructive',
+      })
+      setBatchModalOpen(false)
+      return
+    }
+
+    setSavingBatch(true)
+    try {
+      await trocasService.batchDecide(idsToProcess, {
+        status: batchDecisionType,
+        motivo_recusa: batchDecisionType === 'Recusada' ? batchMotivoRecusa.trim() : undefined,
+        decidido_por: user?.id || 'admin',
+        decidido_por_nome: profile?.nome || 'Administrador',
+      })
+
+      toast({
+        title: `Ação em Lote Concluída`,
+        description: `${idsToProcess.length} troca(s) de plantão foram ${batchDecisionType.toLowerCase()}s com sucesso.`,
+      })
+      setBatchModalOpen(false)
+      setSelectedIds([])
+      loadData()
+    } catch (err: any) {
+      toast({
+        title: 'Erro na Ação em Lote',
+        description: err.message || 'Falha ao processar trocas em lote.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingBatch(false)
+    }
+  }
+
   const getStatusBadge = (status: TrocaPlantaoStatus) => {
     switch (status) {
       case 'Autorizada':
@@ -285,6 +377,46 @@ export default function TrocasPlantaoList() {
         </div>
       )}
 
+      {/* Batch Action Toolbar */}
+      {permissions.canApproveTrocas && selectedIds.length > 0 && (
+        <div className="p-3 bg-amber-500 text-white rounded-xl shadow-md flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 text-xs font-semibold">
+            <Layers className="w-4 h-4 text-amber-100 shrink-0" />
+            <span>
+              {selectedIds.length}{' '}
+              {selectedIds.length === 1 ? 'troca selecionada' : 'trocas selecionadas'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => openBatchModal('Autorizada')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-8 shadow-sm"
+            >
+              <Check className="w-3.5 h-3.5 mr-1" />
+              Autorizar Selecionadas ({selectedIds.length})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openBatchModal('Recusada')}
+              className="bg-white hover:bg-rose-50 text-rose-600 border-rose-200 text-xs font-semibold h-8 shadow-sm"
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Recusar Selecionadas ({selectedIds.length})
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds([])}
+              className="text-white hover:bg-amber-600 text-xs h-8 px-2"
+            >
+              Desmarcar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <Card className="border-slate-200 bg-white shadow-sm">
         <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -322,6 +454,16 @@ export default function TrocasPlantaoList() {
           <Table>
             <TableHeader className="bg-slate-50 border-b border-slate-200">
               <TableRow>
+                {permissions.canApproveTrocas && (
+                  <TableHead className="w-10 text-center">
+                    <Checkbox
+                      checked={allPendingSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      disabled={pendingTrocas.length === 0}
+                      aria-label="Selecionar todas as trocas pendentes"
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="text-xs font-bold text-slate-700">
                   Solicitante ➔ Substituto
                 </TableHead>
@@ -347,13 +489,23 @@ export default function TrocasPlantaoList() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-500">
+                  <TableCell
+                    colSpan={
+                      permissions.canApproveTrocas ? (isConsolidado ? 9 : 8) : isConsolidado ? 8 : 7
+                    }
+                    className="text-center py-10 text-xs text-slate-500"
+                  >
                     Carregando trocas de plantão...
                   </TableCell>
                 </TableRow>
               ) : trocas.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-xs text-slate-400">
+                  <TableCell
+                    colSpan={
+                      permissions.canApproveTrocas ? (isConsolidado ? 9 : 8) : isConsolidado ? 8 : 7
+                    }
+                    className="text-center py-12 text-xs text-slate-400"
+                  >
                     <ArrowLeftRight className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     Nenhuma troca de plantão encontrada.
                   </TableCell>
@@ -361,12 +513,27 @@ export default function TrocasPlantaoList() {
               ) : (
                 trocas.map((t) => {
                   const isPending = t.status === 'Pendente'
+                  const isSelected = selectedIds.includes(t.id)
 
                   return (
                     <TableRow
                       key={t.id}
-                      className={`hover:bg-slate-50 ${isPending ? 'bg-amber-50/25 border-l-4 border-l-amber-500' : ''}`}
+                      className={`hover:bg-slate-50 ${isPending ? 'bg-amber-50/25 border-l-4 border-l-amber-500' : ''} ${isSelected ? 'bg-amber-50/60' : ''}`}
                     >
+                      {permissions.canApproveTrocas && (
+                        <TableCell className="text-center py-2.5">
+                          {isPending ? (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => handleToggleSelectOne(t.id)}
+                              aria-label={`Selecionar troca de ${t.solicitante?.nome || 'registro'}`}
+                            />
+                          ) : (
+                            <span className="text-slate-300">•</span>
+                          )}
+                        </TableCell>
+                      )}
+
                       <TableCell className="py-2.5">
                         <div className="font-semibold text-xs text-slate-900">
                           {t.solicitante?.nome || 'Solicitante'}
@@ -660,6 +827,81 @@ export default function TrocasPlantaoList() {
               }
             >
               {savingDecision ? 'Processando...' : `Confirmar ${decisionType}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Decision Modal */}
+      <Dialog open={batchModalOpen} onOpenChange={setBatchModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-amber-500" />
+              {batchDecisionType === 'Autorizada'
+                ? 'Autorização em Lote de Trocas'
+                : 'Recusa em Lote de Trocas'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Você está prestes a processar {selectedIds.length}{' '}
+              {selectedIds.length === 1 ? 'troca selecionada' : 'trocas selecionadas'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 space-y-1">
+              <div>
+                Trocas Selecionadas:{' '}
+                <strong className="text-slate-900">{selectedIds.length}</strong>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                A decisão será aplicada simultaneamente em todos os registros selecionados.
+              </div>
+            </div>
+
+            {batchDecisionType === 'Recusada' ? (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Motivo da Recusa em Lote (Obrigatório) *
+                </Label>
+                <Input
+                  required
+                  placeholder="Ex: Não autorizado devido a incompatibilidade de turnos."
+                  value={batchMotivoRecusa}
+                  onChange={(e) => setBatchMotivoRecusa(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-slate-600">
+                Confirma a autorização de todas as {selectedIds.length} trocas selecionadas? Os
+                registros ficarão marcados com seu usuário e data/hora atual.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBatchModalOpen(false)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={savingBatch}
+              onClick={handleConfirmBatchDecision}
+              className={
+                batchDecisionType === 'Autorizada'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold'
+                  : 'bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold'
+              }
+            >
+              {savingBatch
+                ? 'Processando Lote...'
+                : `Confirmar ${batchDecisionType === 'Autorizada' ? 'Autorização' : 'Recusa'} (${selectedIds.length})`}
             </Button>
           </DialogFooter>
         </DialogContent>

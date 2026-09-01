@@ -27,7 +27,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { FileSpreadsheet, Printer, Users, Clock, Bus, Building, RotateCcw } from 'lucide-react'
+import {
+  FileSpreadsheet,
+  Printer,
+  Users,
+  Clock,
+  Bus,
+  Building,
+  RotateCcw,
+  Download,
+  FileCode,
+} from 'lucide-react'
 import { formatCurrency, formatDateBR } from '@/lib/formatters'
 import { useToast } from '@/hooks/use-toast'
 
@@ -162,12 +172,293 @@ export default function RelatoriosPage() {
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `relatorio_${activeTab}_${Date.now()}.csv`)
+    link.setAttribute(
+      'download',
+      `relatorio_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`,
+    )
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
 
-    toast({ title: 'Exportação Concluída', description: 'Arquivo CSV gerado com sucesso.' })
+    toast({ title: 'Exportação CSV Concluída', description: 'Arquivo CSV gerado com sucesso.' })
+  }
+
+  const handleExportExcel = () => {
+    // Generate an Excel XML (.xls / .xlsx readable by MS Excel, Google Sheets, LibreOffice)
+    // with styled headers, formatted columns, and numeric types
+    let sheetName = 'Relatório'
+    let headers: string[] = []
+    let rows: (string | number)[][] = []
+    let totalRow: (string | number)[] | null = null
+
+    if (activeTab === 'horas') {
+      sheetName = 'Horas Extras'
+      headers = [
+        'Colaborador',
+        'Empresa',
+        'Posto de Trabalho',
+        'Data',
+        'Entrada',
+        'Saída',
+        'Quantidade de Horas',
+        'Tipo de Dia',
+        'Percentual (%)',
+        'Valor da Hora Base (R$)',
+        'Valor Total Calculado (R$)',
+        'Status',
+      ]
+      rows = horasExtras.map((h) => [
+        h.colaborador?.nome || '',
+        h.empresa?.nome || '',
+        h.posto?.nome || 'Base',
+        formatDateBR(h.data),
+        h.entrada || '',
+        h.saida || '',
+        Number(h.quantidade_horas) || 0,
+        h.tipo_dia || '',
+        Number(h.percentual) || 0,
+        Number(h.valor_hora) || 0,
+        Number(h.valor_calculado) || 0,
+        h.status || '',
+      ])
+      totalRow = [
+        'TOTAL GERAL',
+        '',
+        '',
+        '',
+        '',
+        '',
+        totalHorasQtd,
+        '',
+        '',
+        '',
+        totalHorasVal,
+        `${horasExtras.length} registros`,
+      ]
+    } else if (activeTab === 'vt') {
+      sheetName = 'Vale-Transporte'
+      headers = [
+        'Colaborador',
+        'Empresa',
+        'Competência',
+        'Número do Cartão',
+        'Tipo de Transporte',
+        'Valor Diário (R$)',
+        'Dias Previstos',
+        'Dias Trabalhados',
+        'Valor Previsto (R$)',
+        'Valor Depositado (R$)',
+        'Diferença (R$)',
+      ]
+      rows = vtList.map((v) => [
+        v.colaborador?.nome || '',
+        v.empresa?.nome || '',
+        v.competencia || '',
+        v.numero_cartao || '-',
+        v.tipo_transporte || '',
+        Number(v.valor_diario) || 0,
+        Number(v.dias_previstos) || 0,
+        Number(v.dias_trabalhados) || 0,
+        Number(v.valor_previsto) || 0,
+        Number(v.valor_depositado) || 0,
+        Number(v.diferenca) || 0,
+      ])
+      totalRow = [
+        'TOTAL GERAL',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        totalVtPrevisto,
+        totalVtDepositado,
+        totalVtDiferenca,
+      ]
+    } else {
+      sheetName = 'Efetivo Colaboradores'
+      headers = [
+        'Nome Completo',
+        'CPF',
+        'Empresa',
+        'Cargo',
+        'Posto de Trabalho',
+        'Data de Admissão',
+        'Escala',
+        'Turno',
+        'Status',
+        'Valor Hora Base (R$)',
+        'Valor Diário VT (R$)',
+      ]
+      rows = colaboradores.map((c) => [
+        c.nome,
+        c.cpf,
+        c.empresa?.nome || '',
+        c.cargo,
+        c.posto?.nome || 'Base',
+        formatDateBR(c.data_admissao),
+        c.escala?.nome || '-',
+        c.turno,
+        c.status,
+        Number(c.valor_hora_base) || 0,
+        Number(c.valor_diario_vt) || 0,
+      ])
+      totalRow = [
+        'TOTAL GERAL',
+        `${colaboradores.length} colaboradores`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        `${countAtivos} ativos / ${countInativos} inativos`,
+        '',
+        '',
+      ]
+    }
+
+    const escapeXml = (unsafe: any) => {
+      if (unsafe === null || unsafe === undefined) return ''
+      return String(unsafe)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;')
+    }
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Title>Relatório Operacional - ${escapeXml(sheetName)}</Title>
+  <Author>Gestão Operacional Multiempresa</Author>
+  <Created>${new Date().toISOString()}</Created>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#1e293b"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="Header">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#cbd5e1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#cbd5e1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#cbd5e1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#cbd5e1"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#0f172a" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="Cell">
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="10" ss:Color="#0f172a"/>
+  </Style>
+  <Style ss:ID="NumberCell">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#e2e8f0"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="10" ss:Color="#0f172a"/>
+   <NumberFormat ss:Format="#,##0.00"/>
+  </Style>
+  <Style ss:ID="TotalCell">
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0f172a"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#0f172a"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#0f172a" ss:Bold="1"/>
+   <Interior ss:Color="#fef3c7" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="TotalNumberCell">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0f172a"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#0f172a"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#0f172a" ss:Bold="1"/>
+   <Interior ss:Color="#fef3c7" ss:Pattern="Solid"/>
+   <NumberFormat ss:Format="#,##0.00"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="${escapeXml(sheetName)}">
+  <Table ss:DefaultRowHeight="20">`
+
+    // Columns width
+    headers.forEach(() => {
+      xml += `\n   <Column ss:AutoFitWidth="1" ss:Width="120"/>`
+    })
+
+    // Header Row
+    xml += `\n   <Row ss:Height="26" ss:StyleID="Header">`
+    headers.forEach((h) => {
+      xml += `\n    <Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`
+    })
+    xml += `\n   </Row>`
+
+    // Data Rows
+    rows.forEach((r) => {
+      xml += `\n   <Row ss:Height="20">`
+      r.forEach((cellVal) => {
+        const isNum = typeof cellVal === 'number'
+        const type = isNum ? 'Number' : 'String'
+        const style = isNum ? 'NumberCell' : 'Cell'
+        xml += `\n    <Cell ss:StyleID="${style}"><Data ss:Type="${type}">${escapeXml(cellVal)}</Data></Cell>`
+      })
+      xml += `\n   </Row>`
+    })
+
+    // Total Row
+    if (totalRow) {
+      xml += `\n   <Row ss:Height="22" ss:StyleID="TotalCell">`
+      totalRow.forEach((cellVal) => {
+        const isNum = typeof cellVal === 'number'
+        const type = isNum ? 'Number' : 'String'
+        const style = isNum ? 'TotalNumberCell' : 'TotalCell'
+        xml += `\n    <Cell ss:StyleID="${style}"><Data ss:Type="${type}">${escapeXml(cellVal)}</Data></Cell>`
+      })
+      xml += `\n   </Row>`
+    }
+
+    xml += `\n  </Table>
+ </Worksheet>
+</Workbook>`
+
+    const blob = new Blob([xml], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `relatorio_${activeTab}_${new Date().toISOString().split('T')[0]}.xls`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast({
+      title: 'Exportação Excel Concluída',
+      description: 'Arquivo compatível com Excel e Google Sheets gerado com sucesso.',
+    })
   }
 
   // Recalculated totalizers based on active filters
@@ -220,10 +511,19 @@ export default function RelatoriosPage() {
           </Button>
           <Button
             onClick={handleExportCSV}
+            variant="outline"
+            size="sm"
+            className="text-xs font-semibold h-9"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5 text-slate-600" />
+            Exportar CSV
+          </Button>
+          <Button
+            onClick={handleExportExcel}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-9 shadow-sm"
           >
             <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-            Exportar CSV / Excel
+            Exportar Excel (.xls)
           </Button>
         </div>
       </div>

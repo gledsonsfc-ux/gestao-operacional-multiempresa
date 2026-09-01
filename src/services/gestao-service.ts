@@ -12,6 +12,7 @@ import {
   Feriado,
   FormularioPublico,
   AlteracaoHistorico,
+  UserProfile,
 } from '@/types/gestao'
 
 // Colaboradores Service
@@ -56,7 +57,16 @@ export const colaboradoresService = {
   },
 
   async create(payload: Partial<Colaborador>) {
-    const { data, error } = await supabase.from('colaboradores').insert(payload).select().single()
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).posto
+    delete (cleanPayload as any).escala
+
+    const { data, error } = await supabase
+      .from('colaboradores')
+      .insert(cleanPayload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as Colaborador
   },
@@ -71,9 +81,14 @@ export const colaboradoresService = {
       motivo?: string
     },
   ) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).posto
+    delete (cleanPayload as any).escala
+
     const { data, error } = await supabase
       .from('colaboradores')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
       .eq('id', id)
       .select()
       .single()
@@ -162,7 +177,15 @@ export const postosService = {
   },
 
   async create(payload: Partial<Posto>) {
-    const { data, error } = await supabase.from('postos').insert(payload).select().single()
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any)._count_colaboradores
+
+    const { data, error } = await supabase
+      .from('postos')
+      .insert(cleanPayload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as Posto
   },
@@ -172,9 +195,13 @@ export const postosService = {
     payload: Partial<Posto>,
     auditInfo?: { previous?: Partial<Posto>; userId?: string; userName?: string },
   ) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any)._count_colaboradores
+
     const { data, error } = await supabase
       .from('postos')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
       .eq('id', id)
       .select()
       .single()
@@ -225,15 +252,27 @@ export const escalasService = {
   },
 
   async create(payload: Partial<Escala>) {
-    const { data, error } = await supabase.from('escalas').insert(payload).select().single()
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).posto
+
+    const { data, error } = await supabase
+      .from('escalas')
+      .insert(cleanPayload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as Escala
   },
 
   async update(id: string, payload: Partial<Escala>) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).posto
+
     const { data, error } = await supabase
       .from('escalas')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
       .eq('id', id)
       .select()
       .single()
@@ -284,9 +323,14 @@ export const horasExtrasService = {
   },
 
   async create(payload: Partial<HoraExtra>) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+    delete (cleanPayload as any).posto
+
     const { data, error } = await supabase
       .from('horas_extras')
-      .insert(payload)
+      .insert(cleanPayload as any)
       .select('*, colaborador:colaboradores(*), posto:postos(*), empresa:empresas(*)')
       .single()
     if (error) throw error
@@ -303,9 +347,14 @@ export const horasExtrasService = {
       motivo?: string
     },
   ) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+    delete (cleanPayload as any).posto
+
     const { data, error } = await supabase
       .from('horas_extras')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
       .eq('id', id)
       .select('*, colaborador:colaboradores(*), posto:postos(*), empresa:empresas(*)')
       .single()
@@ -339,6 +388,40 @@ export const horasExtrasService = {
     }
 
     return data as HoraExtra
+  },
+
+  async batchDecide(
+    items: HoraExtra[],
+    decision: {
+      status: 'Aprovado' | 'Recusado'
+      motivo_recusa?: string
+      userId?: string
+      userName?: string
+    },
+  ) {
+    const results: HoraExtra[] = []
+    const nowIso = new Date().toISOString()
+
+    for (const item of items) {
+      const updated = await this.update(
+        item.id,
+        {
+          status: decision.status,
+          motivo_recusa: decision.status === 'Recusado' ? decision.motivo_recusa : null,
+          aprovado_por: decision.userId,
+          aprovado_em: nowIso,
+        },
+        {
+          previous: item,
+          userId: decision.userId,
+          userName: decision.userName,
+          motivo: `Aprovação/Decisão em lote para ${decision.status}: ${decision.motivo_recusa || 'Ação em lote'}`,
+        },
+      )
+      results.push(updated)
+    }
+
+    return results
   },
 
   async delete(id: string) {
@@ -386,9 +469,12 @@ export const horaExtraConfigsService = {
       if (error) throw error
       return data as HoraExtraConfig
     } else {
+      const cleanPayload = { ...payload }
+      delete (cleanPayload as any).empresa
+
       const { data, error } = await supabase
         .from('hora_extra_configs')
-        .insert(payload)
+        .insert(cleanPayload as any)
         .select()
         .single()
       if (error) throw error
@@ -406,7 +492,11 @@ export const horaExtraConfigsService = {
   },
 
   async saveFeriado(payload: Partial<Feriado>) {
-    const { data, error } = await supabase.from('feriados').insert(payload).select().single()
+    const { data, error } = await supabase
+      .from('feriados')
+      .insert(payload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as Feriado
   },
@@ -467,7 +557,17 @@ export const trocasService = {
   },
 
   async create(payload: Partial<TrocaPlantao>) {
-    const { data, error } = await supabase.from('trocas_plantao').insert(payload).select().single()
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).solicitante
+    delete (cleanPayload as any).substituto
+    delete (cleanPayload as any).posto
+
+    const { data, error } = await supabase
+      .from('trocas_plantao')
+      .insert(cleanPayload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as TrocaPlantao
   },
@@ -496,6 +596,23 @@ export const trocasService = {
       .single()
     if (error) throw error
     return data as TrocaPlantao
+  },
+
+  async batchDecide(
+    ids: string[],
+    decision: {
+      status: 'Autorizada' | 'Recusada'
+      motivo_recusa?: string
+      decidido_por: string
+      decidido_por_nome: string
+    },
+  ) {
+    const results: TrocaPlantao[] = []
+    for (const id of ids) {
+      const res = await this.decide(id, decision)
+      results.push(res)
+    }
+    return results
   },
 }
 
@@ -537,10 +654,14 @@ export const valeTransporteService = {
       motivo?: string
     },
   ) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+
     if (payload.id) {
       const { data, error } = await supabase
         .from('vale_transporte')
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
         .eq('id', payload.id)
         .select()
         .single()
@@ -563,7 +684,7 @@ export const valeTransporteService = {
     } else {
       const { data, error } = await supabase
         .from('vale_transporte')
-        .insert(payload)
+        .insert(cleanPayload as any)
         .select()
         .single()
       if (error) throw error
@@ -593,15 +714,27 @@ export const uniformesService = {
   },
 
   async create(payload: Partial<UniformeEPI>) {
-    const { data, error } = await supabase.from('uniformes_epis').insert(payload).select().single()
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+
+    const { data, error } = await supabase
+      .from('uniformes_epis')
+      .insert(cleanPayload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as UniformeEPI
   },
 
   async update(id: string, payload: Partial<UniformeEPI>) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+
     const { data, error } = await supabase
       .from('uniformes_epis')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
       .eq('id', id)
       .select()
       .single()
@@ -631,15 +764,29 @@ export const documentosService = {
   },
 
   async create(payload: Partial<DocumentoItem>) {
-    const { data, error } = await supabase.from('documentos').insert(payload).select().single()
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+    delete (cleanPayload as any).posto
+
+    const { data, error } = await supabase
+      .from('documentos')
+      .insert(cleanPayload as any)
+      .select()
+      .single()
     if (error) throw error
     return data as DocumentoItem
   },
 
   async update(id: string, payload: Partial<DocumentoItem>) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+    delete (cleanPayload as any).colaborador
+    delete (cleanPayload as any).posto
+
     const { data, error } = await supabase
       .from('documentos')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...cleanPayload, updated_at: new Date().toISOString() } as any)
       .eq('id', id)
       .select()
       .single()
@@ -675,9 +822,12 @@ export const formulariosService = {
   },
 
   async create(payload: Partial<FormularioPublico>) {
+    const cleanPayload = { ...payload }
+    delete (cleanPayload as any).empresa
+
     const { data, error } = await supabase
       .from('formularios_publicos')
-      .insert(payload)
+      .insert(cleanPayload as any)
       .select()
       .single()
     if (error) throw error
