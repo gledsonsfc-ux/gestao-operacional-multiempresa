@@ -37,7 +37,7 @@ import {
   Edit,
   Upload,
 } from 'lucide-react'
-import { formatCPF } from '@/lib/formatters'
+import { formatCPF, cleanCPF, normalizeSearchText } from '@/lib/formatters'
 import { ImportColaboradoresModal } from '@/components/ImportColaboradoresModal'
 
 export default function ColaboradoresList() {
@@ -66,7 +66,6 @@ export default function ColaboradoresList() {
         colaboradoresService.list(selectedEmpresaId, {
           postoId: selectedPosto,
           status: selectedStatus,
-          search: searchTerm,
         }),
         postosService.list(selectedEmpresaId),
       ])
@@ -81,14 +80,50 @@ export default function ColaboradoresList() {
 
   useEffect(() => {
     loadData()
-    setCurrentPage(1)
-  }, [selectedEmpresaId, selectedPosto, selectedStatus, searchTerm])
+  }, [selectedEmpresaId, selectedPosto, selectedStatus])
 
-  // Filter inativos toggle locally if status is 'todos'
+  // Reset pagination when search term or filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedPosto, selectedStatus, includeInativos, selectedEmpresaId])
+
+  // Filter list locally with real-time, accent-tolerant, case-insensitive, and clean-CPF search
   const filteredList = colaboradores.filter((c) => {
+    // 1. Inativos toggle filter
     if (!includeInativos && selectedStatus === 'todos' && c.status === 'Inativo') {
       return false
     }
+
+    // 2. Real-time search filter
+    if (searchTerm.trim()) {
+      const normalizedQuery = normalizeSearchText(searchTerm)
+      const cleanQueryDigits = cleanCPF(searchTerm)
+
+      // Normalize candidate fields
+      const normNome = normalizeSearchText(c.nome)
+      const normCargo = normalizeSearchText(c.cargo)
+      const normCodigoRH = normalizeSearchText(c.codigo_rh)
+      const normCpf = normalizeSearchText(c.cpf)
+      const cleanCpfDigits = cleanCPF(c.cpf || '')
+
+      const matchesNome = normNome.includes(normalizedQuery)
+      const matchesCargo = normCargo.includes(normalizedQuery)
+      const matchesCodigoRH = normCodigoRH.includes(normalizedQuery)
+      const matchesCpfRaw = normCpf.includes(normalizedQuery)
+      const matchesCpfDigits =
+        cleanQueryDigits.length > 0 && cleanCpfDigits.includes(cleanQueryDigits)
+
+      if (
+        !matchesNome &&
+        !matchesCargo &&
+        !matchesCodigoRH &&
+        !matchesCpfRaw &&
+        !matchesCpfDigits
+      ) {
+        return false
+      }
+    }
+
     return true
   })
 

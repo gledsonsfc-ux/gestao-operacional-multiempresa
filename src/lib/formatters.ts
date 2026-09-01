@@ -12,6 +12,22 @@ export const cleanCPF = (value: string): string => {
   return value.replace(/\D/g, '')
 }
 
+/**
+ * Normalizes text for search comparisons:
+ * - Converts to string
+ * - Removes accents and diacritics via NFD decomposition
+ * - Converts to lowercase
+ * - Trims extra whitespace
+ */
+export const normalizeSearchText = (val?: string | number | null): string => {
+  if (val === undefined || val === null) return ''
+  return String(val)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
 export const isValidCPF = (cpf: string): boolean => {
   const clean = cpf.replace(/\D/g, '')
   if (clean.length !== 11) return false
