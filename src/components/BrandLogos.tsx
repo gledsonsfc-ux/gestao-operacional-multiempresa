@@ -1,6 +1,6 @@
 import React from 'react'
-import hammerLogoImg from '@/assets/file000000009990820e9ed02e6aa20479a7-a4996.png'
-import inteligenciaLogoImg from '@/assets/file000000009990820e9ed02e6aa20479a7-14192.png'
+import hammerLogoImg from '@/assets/img-20260811-wa0019-e4480.jpg'
+import inteligenciaLogoImg from '@/assets/img-20260811-wa00181-1942d.jpg'
 
 interface BrandLogoProps {
   className?: string
@@ -11,7 +11,7 @@ interface BrandLogoProps {
 
 /**
  * Logo oficial Inteligência e Serviços
- * Arquivo original: file000000009990820e9ed02e6aa20479a7-14192.png
+ * Arquivo gráfico original: quadrantes com "INTELIGÊNCIA SERVIÇOS"
  * Slogan: "Inteligência em gestão, excelência em serviços."
  */
 export function InteligenciaLogo({
@@ -38,7 +38,7 @@ export function InteligenciaLogo({
     return (
       <img
         src={inteligenciaLogoImg}
-        alt="Inteligência e Serviços"
+        alt="Inteligência Serviços"
         className={`${iconSizeClasses[size]} object-contain shrink-0 ${className}`}
       />
     )
@@ -48,7 +48,7 @@ export function InteligenciaLogo({
     <div className={`flex flex-col items-start ${className}`}>
       <img
         src={inteligenciaLogoImg}
-        alt="Inteligência e Serviços"
+        alt="Inteligência Serviços"
         className={`${imgSizeClasses[size]} w-auto object-contain shrink-0 drop-shadow-xs`}
       />
       {showSlogan && (
@@ -62,7 +62,7 @@ export function InteligenciaLogo({
 
 /**
  * Logo oficial Hammer Segurança Privada
- * Arquivo original: file000000009990820e9ed02e6aa20479a7-a4996.png
+ * Arquivo gráfico original: brasão metálico "HAMMER SEGURANÇA PRIVADA"
  * Slogan: "Protegemos pessoas, patrimônio e o que realmente importa."
  */
 export function HammerLogo({

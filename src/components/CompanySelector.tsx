@@ -17,6 +17,25 @@ interface CompanySelectorProps {
 export function CompanySelector({ className = '', compact = false }: CompanySelectorProps) {
   const { empresas, selectedEmpresaId, setSelectedEmpresaId, canViewConsolidado } = useEmpresa()
 
+  // Garantir a ordem estrita solicitada:
+  // 1. Visão Consolidada
+  // 2. HAMMER SEGURANÇA PRIVADA
+  // 3. INTELIGÊNCIA SERVIÇOS
+  const sortedEmpresas = [...empresas].sort((a, b) => {
+    const isHammerA =
+      a.tipo === 'seguranca' ||
+      a.slug === 'hammer-seguranca' ||
+      a.nome.toLowerCase().includes('hammer')
+    const isHammerB =
+      b.tipo === 'seguranca' ||
+      b.slug === 'hammer-seguranca' ||
+      b.nome.toLowerCase().includes('hammer')
+
+    if (isHammerA && !isHammerB) return -1
+    if (!isHammerA && isHammerB) return 1
+    return 0
+  })
+
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {!compact && (
@@ -38,11 +57,11 @@ export function CompanySelector({ className = '', compact = false }: CompanySele
                 <div className="w-6 h-6 rounded bg-[#004B87]/10 flex items-center justify-center text-[#004B87]">
                   <Layers className="w-3.5 h-3.5" />
                 </div>
-                <span>Visão Consolidada (Grupo)</span>
+                <span>VISÃO CONSOLIDADA</span>
               </div>
             </SelectItem>
           )}
-          {empresas.map((emp) => {
+          {sortedEmpresas.map((emp) => {
             const isHammer =
               emp.tipo === 'seguranca' ||
               emp.slug === 'hammer-seguranca' ||

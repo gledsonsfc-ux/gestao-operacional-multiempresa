@@ -294,11 +294,31 @@ export default function Layout() {
               </SheetContent>
             </Sheet>
 
-            {/* Topbar Title Oficial */}
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-[#004B87] uppercase">
-                GESTÃO OPERACIONAL MULTIEMPRESA
-              </span>
+            {/* Topbar Title Oficial / Logo quando empresa selecionada */}
+            <div className="flex items-center gap-3">
+              {isConsolidado ? (
+                <span className="font-extrabold text-sm sm:text-base tracking-tight text-[#004B87] uppercase">
+                  GESTÃO OPERACIONAL MULTIEMPRESA
+                </span>
+              ) : isHammer ? (
+                <div className="flex items-center gap-2.5">
+                  <HammerLogo size="sm" variant="icon" />
+                  <span className="font-extrabold text-xs sm:text-sm tracking-tight text-slate-900 uppercase">
+                    HAMMER SEGURANÇA PRIVADA
+                  </span>
+                </div>
+              ) : isInteligencia ? (
+                <div className="flex items-center gap-2.5">
+                  <InteligenciaLogo size="sm" variant="icon" />
+                  <span className="font-extrabold text-xs sm:text-sm tracking-tight text-[#004B87] uppercase">
+                    INTELIGÊNCIA SERVIÇOS
+                  </span>
+                </div>
+              ) : (
+                <span className="font-extrabold text-sm sm:text-base tracking-tight text-[#004B87] uppercase">
+                  {selectedEmpresa?.nome || 'GESTÃO OPERACIONAL MULTIEMPRESA'}
+                </span>
+              )}
             </div>
           </div>
 
