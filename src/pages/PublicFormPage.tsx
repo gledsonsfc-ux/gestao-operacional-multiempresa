@@ -233,7 +233,6 @@ export default function PublicFormPage() {
 
         await trocasService.create({
           empresa_id: formConfig.empresa_id,
-          colaborador_id: colaboradorId as any,
           solicitante_id: colaboradorId,
           substituto_id: substitutoId,
           posto_id: postoId !== 'none' ? postoId : null,

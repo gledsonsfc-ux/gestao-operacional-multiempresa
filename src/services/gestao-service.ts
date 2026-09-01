@@ -501,7 +501,13 @@ export const trocasService = {
 
 // Vale Transporte Service
 export const valeTransporteService = {
-  async list(empresaId?: string | 'consolidado', competencia?: string) {
+  async list(
+    empresaId?: string | 'consolidado',
+    options?: {
+      competencia?: string
+      colaboradorId?: string
+    },
+  ) {
     let query = supabase
       .from('vale_transporte')
       .select('*, colaborador:colaboradores(*), empresa:empresas(*)')
@@ -510,8 +516,11 @@ export const valeTransporteService = {
     if (empresaId && empresaId !== 'consolidado') {
       query = query.eq('empresa_id', empresaId)
     }
-    if (competencia) {
-      query = query.eq('competencia', competencia)
+    if (options?.competencia) {
+      query = query.eq('competencia', options.competencia)
+    }
+    if (options?.colaboradorId && options.colaboradorId !== 'todos') {
+      query = query.eq('colaborador_id', options.colaboradorId)
     }
 
     const { data, error } = await query
@@ -721,5 +730,83 @@ export const historicoService = {
       .order('created_at', { ascending: false })
     if (error) throw error
     return (data as AlteracaoHistorico[]) || []
+  },
+}
+
+// Perfis / Usuários Service
+export const profilesService = {
+  async list() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, empresa:empresas(*)')
+      .order('nome', { ascending: true })
+    if (error) throw error
+    return (data as (UserProfile & { empresa?: any })[]) || []
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, empresa:empresas(*)')
+      .eq('id', id)
+      .single()
+    if (error) throw error
+    return data as UserProfile & { empresa?: any }
+  },
+
+  async update(
+    id: string,
+    payload: Partial<UserProfile>,
+    auditInfo?: {
+      previous?: Partial<UserProfile>
+      userId?: string
+      userName?: string
+      motivo?: string
+    },
+  ) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        nome: payload.nome,
+        role: payload.role,
+        empresa_id: payload.empresa_id !== undefined ? payload.empresa_id : undefined,
+        permite_consolidado: payload.permite_consolidado,
+        telefone: payload.telefone,
+        ativo: payload.ativo,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*, empresa:empresas(*)')
+      .single()
+    if (error) throw error
+
+    if (auditInfo?.previous) {
+      const keys: (keyof UserProfile)[] = [
+        'nome',
+        'role',
+        'empresa_id',
+        'ativo',
+        'permite_consolidado',
+      ]
+      for (const k of keys) {
+        const prev = String(auditInfo.previous[k] ?? '')
+        const curr = String(payload[k] ?? '')
+        if (payload[k] !== undefined && prev !== curr) {
+          await historicoService.log({
+            empresa_id: data.empresa_id || null,
+            tabela: 'profiles',
+            registro_id: id,
+            campo: String(k),
+            valor_anterior: prev,
+            valor_novo: curr,
+            motivo: auditInfo.motivo || 'Alteração de perfil/permissão de usuário',
+            usuario_id: auditInfo.userId,
+            usuario_nome: auditInfo.userName,
+          })
+        }
+      }
+    }
+
+    return data as UserProfile & { empresa?: any }
   },
 }
