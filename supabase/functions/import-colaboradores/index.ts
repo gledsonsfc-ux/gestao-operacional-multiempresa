@@ -156,15 +156,20 @@ async function runImport() {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-  const url =
-    'https://dagtlwojkqyivnjgveda.supabase.co/storage/v1/object/public/message-attachments/f64319e9-f987-4fa3-87b1-d86765ad18ed/cadastrocompletocolaboradoresparaskip-c3ffa.xlsx'
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`Failed to fetch file: ${res.statusText}`)
+  // Read local file or provided binary
+  let workbook: XLSX.WorkBook
+  try {
+    const fileBytes = await Deno.readFile(
+      './src/assets/cadastrocompletocolaboradoresparaskip-26f70.xlsx',
+    )
+    workbook = XLSX.read(fileBytes, { type: 'array', cellDates: true })
+  } catch (_e) {
+    // Fallback if needed
+    const fileBytes = await Deno.readFile(
+      'src/assets/cadastrocompletocolaboradoresparaskip-26f70.xlsx',
+    )
+    workbook = XLSX.read(fileBytes, { type: 'array', cellDates: true })
   }
-
-  const arrayBuffer = await res.arrayBuffer()
-  const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellDates: true })
 
   const { data: dbExisting, error: fetchErr } = await supabase.from('colaboradores').select('*')
   if (fetchErr) throw fetchErr
