@@ -48,6 +48,118 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 
+function pluralizeCargoWord(word: string): string {
+  const lower = word.toLowerCase()
+
+  // Irregulars / unchanged endings
+  if (lower.endsWith('s') || lower.endsWith('x')) {
+    return lower
+  }
+
+  // Endings in -m -> -ns (e.g. homem -> homens, garçom -> garçons)
+  if (lower.endsWith('m')) {
+    return lower.slice(0, -1) + 'ns'
+  }
+
+  // Endings in -ão -> -ões (e.g. coordenador de operação, vigilância etc.)
+  if (lower.endsWith('ão')) {
+    return lower.slice(0, -2) + 'ões'
+  }
+
+  // Endings in -al, -el, -ol, -ul -> -ais, -eis, -ois, -uis (e.g. operacional -> operacionais)
+  if (lower.endsWith('al')) {
+    return lower.slice(0, -2) + 'ais'
+  }
+  if (lower.endsWith('el')) {
+    return lower.slice(0, -2) + 'eis'
+  }
+  if (lower.endsWith('ol')) {
+    return lower.slice(0, -2) + 'ois'
+  }
+  if (lower.endsWith('ul')) {
+    return lower.slice(0, -2) + 'uis'
+  }
+  if (lower.endsWith('il')) {
+    return lower.slice(0, -2) + 'is'
+  }
+
+  // Endings in -r or -z -> -res, -zes (e.g. supervisor -> supervisores, lider / líder -> líderes)
+  if (lower.endsWith('r') || lower.endsWith('z')) {
+    return lower + 'es'
+  }
+
+  // Standard vowel endings (a, e, i, o, u) -> +s
+  return lower + 's'
+}
+
+function pluralizeCargo(cargoName: string): string {
+  const cleaned = cargoName.trim().toLowerCase()
+  if (!cleaned) return 'colaboradores'
+
+  // If cargo is multi-word (e.g. "líder operacional", "coordenador operacional", "vigilante armado")
+  // Words like 'de', 'da', 'do', 'das', 'dos', 'em', 'e', 'com', 'para' shouldn't pluralize.
+  const stopwords = new Set([
+    'de',
+    'da',
+    'do',
+    'das',
+    'dos',
+    'e',
+    'em',
+    'com',
+    'para',
+    'a',
+    'o',
+    'as',
+    'os',
+  ])
+
+  const words = cleaned.split(/\s+/)
+  if (words.length === 1) {
+    return pluralizeCargoWord(words[0])
+  }
+
+  const pluralizedWords = words.map((w, idx) => {
+    if (idx > 0 && stopwords.has(w)) {
+      return w
+    }
+    return pluralizeCargoWord(w)
+  })
+
+  return pluralizedWords.join(' ')
+}
+
+function formatColabsByCargo(colabs: Colaborador[]): string {
+  if (colabs.length === 0) {
+    return '0 colaboradores'
+  }
+
+  const countsByCargo: Record<string, { rawName: string; count: number }> = {}
+
+  colabs.forEach((c) => {
+    const cargoRaw = (c.cargo || 'Colaborador').trim()
+    const cargoKey = cargoRaw.toLowerCase()
+    if (!countsByCargo[cargoKey]) {
+      countsByCargo[cargoKey] = { rawName: cargoRaw, count: 0 }
+    }
+    countsByCargo[cargoKey].count += 1
+  })
+
+  const sortedGroups = Object.values(countsByCargo).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count
+    return a.rawName.localeCompare(b.rawName)
+  })
+
+  return sortedGroups
+    .map((g) => {
+      if (g.count === 1) {
+        return `1 ${g.rawName.toLowerCase()}`
+      }
+      return `${g.count} ${pluralizeCargo(g.rawName)}`
+    })
+    .join(', ')
+}
+
 export default function PostosList() {
   const { selectedEmpresaId, isConsolidado, empresas, selectedEmpresa } = useEmpresa()
   const { profile } = useAuth()
@@ -350,9 +462,8 @@ export default function PostosList() {
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                      <Users className="w-3.5 h-3.5 text-amber-600" />
-                      {linkedColabs.length}{' '}
-                      {linkedColabs.length === 1 ? 'colaborador' : 'colaboradores'} ativos
+                      <Users className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      {formatColabsByCargo(linkedColabs)}
                     </span>
                   </div>
                 </CardContent>
