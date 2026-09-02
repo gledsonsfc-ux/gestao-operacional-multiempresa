@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useEmpresa } from '@/hooks/use-empresa'
 import { postosService, colaboradoresService } from '@/services/gestao-service'
 import { Posto, Colaborador } from '@/types/gestao'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -168,6 +169,9 @@ export default function PostosList() {
 
   const [postos, setPostos] = useState<Posto[]>([])
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
+  const [colaboradoresPostosMap, setColaboradoresPostosMap] = useState<
+    Record<string, Colaborador[]>
+  >({})
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
@@ -190,12 +194,46 @@ export default function PostosList() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [postosData, colabsData] = await Promise.all([
+      const [postosData, colabsData, cpRes] = await Promise.all([
         postosService.list(selectedEmpresaId),
         colaboradoresService.list(selectedEmpresaId),
+        supabase.from('colaboradores_postos').select('colaborador_id, posto_id'),
       ])
       setPostos(postosData)
       setColaboradores(colabsData)
+
+      // Mapear colaboradores ativos por posto usando a junção colaboradores_postos
+      const colabById: Record<string, Colaborador> = {}
+      colabsData.forEach((c) => {
+        colabById[c.id] = c
+      })
+
+      const map: Record<string, Colaborador[]> = {}
+      ;(cpRes.data || []).forEach((row: any) => {
+        const c = colabById[row.colaborador_id]
+        if (c && c.status === 'Ativo') {
+          if (!map[row.posto_id]) {
+            map[row.posto_id] = []
+          }
+          if (!map[row.posto_id].some((existing) => existing.id === c.id)) {
+            map[row.posto_id].push(c)
+          }
+        }
+      })
+
+      // Fallback para qualquer colaborador que tenha posto_id mas não esteja na junção
+      colabsData.forEach((c) => {
+        if (c.status === 'Ativo' && c.posto_id) {
+          if (!map[c.posto_id]) {
+            map[c.posto_id] = []
+          }
+          if (!map[c.posto_id].some((existing) => existing.id === c.id)) {
+            map[c.posto_id].push(c)
+          }
+        }
+      })
+
+      setColaboradoresPostosMap(map)
     } catch (err) {
       console.error('Erro ao carregar postos:', err)
     } finally {
@@ -390,9 +428,7 @@ export default function PostosList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPostos.map((p) => {
-            const linkedColabs = colaboradores.filter(
-              (c) => c.posto_id === p.id && c.status === 'Ativo',
-            )
+            const linkedColabs = colaboradoresPostosMap[p.id] || []
 
             return (
               <Card

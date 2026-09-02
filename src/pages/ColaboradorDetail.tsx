@@ -104,6 +104,7 @@ export default function ColaboradorDetail() {
 
   // Edit form state
   const [formData, setFormData] = useState<Partial<Colaborador>>({})
+  const [selectedPostosIds, setSelectedPostosIds] = useState<string[]>([])
 
   const loadColaborador = async () => {
     if (!id) return
@@ -112,6 +113,9 @@ export default function ColaboradorDetail() {
       const data = await colaboradoresService.getById(id)
       setColaborador(data)
       setFormData(data)
+      const vinculadosIds =
+        data.postos_vinculados?.map((p) => p.id) || (data.posto_id ? [data.posto_id] : [])
+      setSelectedPostosIds(vinculadosIds)
 
       const [pList, eList, heList, vtData, uniData, docsData, histData] = await Promise.all([
         postosService.list(data.empresa_id),
@@ -153,6 +157,7 @@ export default function ColaboradorDetail() {
         id,
         {
           ...formData,
+          postos_ids: selectedPostosIds,
           valor_hora_base: Number(formData.valor_hora_base) || 15,
           valor_diario_vt: Number(formData.valor_diario_vt) || 0,
         },
@@ -339,9 +344,11 @@ export default function ColaboradorDetail() {
                 </span>
               </div>
               <div>
-                Posto:{' '}
+                Posto(s):{' '}
                 <span className="font-semibold text-slate-700">
-                  {colaborador.posto?.nome || 'Base'}
+                  {colaborador.postos_vinculados && colaborador.postos_vinculados.length > 0
+                    ? colaborador.postos_vinculados.map((p) => p.nome).join(', ')
+                    : colaborador.posto?.nome || 'Base'}
                 </span>
               </div>
             </div>
@@ -404,13 +411,17 @@ export default function ColaboradorDetail() {
 
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-slate-700">
-                        Posto de Serviço
+                        Posto Principal
                       </Label>
                       <Select
                         value={formData.posto_id || 'none'}
-                        onValueChange={(v) =>
-                          setFormData({ ...formData, posto_id: v === 'none' ? null : v })
-                        }
+                        onValueChange={(v) => {
+                          const val = v === 'none' ? null : v
+                          setFormData({ ...formData, posto_id: val })
+                          if (val && !selectedPostosIds.includes(val)) {
+                            setSelectedPostosIds([...selectedPostosIds, val])
+                          }
+                        }}
                       >
                         <SelectTrigger className="text-xs">
                           <SelectValue placeholder="Selecione o posto" />
@@ -424,6 +435,66 @@ export default function ColaboradorDetail() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Multi-select de Postos de Atuação */}
+                    <div className="col-span-1 sm:col-span-2 lg:col-span-3 space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold text-slate-800">
+                          Postos de Atuação Vinculados (Múltiplos Postos)
+                        </Label>
+                        <span className="text-[11px] text-slate-500">
+                          {selectedPostosIds.length} posto(s) vinculado(s)
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
+                        {postos.map((p) => {
+                          const isChecked = selectedPostosIds.includes(p.id)
+                          const isPrincipal = formData.posto_id === p.id
+                          return (
+                            <label
+                              key={p.id}
+                              className={`flex items-start gap-2 p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                                isChecked
+                                  ? 'bg-amber-50/80 border-amber-300 text-slate-900 font-medium'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPostosIds([...selectedPostosIds, p.id])
+                                    if (!formData.posto_id)
+                                      setFormData({ ...formData, posto_id: p.id })
+                                  } else {
+                                    const updated = selectedPostosIds.filter((pid) => pid !== p.id)
+                                    setSelectedPostosIds(updated)
+                                    if (formData.posto_id === p.id) {
+                                      setFormData({ ...formData, posto_id: updated[0] || null })
+                                    }
+                                  }
+                                }}
+                                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-semibold text-slate-800">
+                                  {p.nome}
+                                </div>
+                                <div className="text-[10px] text-slate-500 truncate">
+                                  {p.cliente}
+                                </div>
+                                {isPrincipal && (
+                                  <span className="inline-block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
+                                    Principal
+                                  </span>
+                                )}
+                              </div>
+                            </label>
+                          )
+                        })}
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
@@ -620,9 +691,23 @@ export default function ColaboradorDetail() {
                     <span className="font-semibold text-slate-800">{colaborador.email || '-'}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">Postos de Atuação:</span>
+                    <span className="font-semibold text-slate-800 text-right">
+                      {colaborador.postos_vinculados && colaborador.postos_vinculados.length > 0
+                        ? colaborador.postos_vinculados.map((p) => p.nome).join(', ')
+                        : colaborador.posto?.nome || 'Base / Sem posto'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100">
                     <span className="text-slate-500">Escala / Turno:</span>
                     <span className="font-semibold text-slate-800">
                       {colaborador.escala?.nome || 'Escala Padrão'} ({colaborador.turno})
+                      {colaborador.escala?.tipo === '12x36' && colaborador.escala?.par_impar && (
+                        <span className="ml-1 text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                          12x36 {colaborador.escala.par_impar === 'par' ? 'Dia Par' : 'Dia Ímpar'}{' '}
+                          (Base Set/26)
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100">

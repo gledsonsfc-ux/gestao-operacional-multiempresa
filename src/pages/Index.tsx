@@ -133,7 +133,7 @@ export default function Index() {
       let colabQuery = supabase
         .from('colaboradores')
         .select(
-          'id, nome, status, cargo, posto_id, empresa_id, foto_url, data_admissao, exige_vigilancia, cnv_validade, proximo_vencimento_reciclagem, posto:postos(nome), empresa:empresas(nome, slug, tipo)',
+          'id, nome, status, cargo, posto_id, empresa_id, foto_url, data_admissao, exige_vigilancia, cnv_validade, proximo_vencimento_reciclagem, posto:postos(nome), empresa:empresas(nome, slug, tipo), colaboradores_postos(posto_id, posto:postos(nome))',
         )
 
       if (!isConsolidado && selectedEmpresaId) {
@@ -328,11 +328,26 @@ export default function Index() {
           .length +
         episPendentes.filter((e: any) => e.empresa_id === hamId).length
 
-      // Top postos
+      // Top postos usando colaboradores_postos (contagem de colaboradores vinculados por posto)
       const colabPostoMap: Record<string, number> = {}
       ativos.forEach((c: any) => {
-        const postoNome = c.posto?.nome || 'Sem Posto / Base'
-        colabPostoMap[postoNome] = (colabPostoMap[postoNome] || 0) + 1
+        const postosDoColab: string[] = []
+        if (c.colaboradores_postos && c.colaboradores_postos.length > 0) {
+          c.colaboradores_postos.forEach((cp: any) => {
+            if (cp.posto?.nome) postosDoColab.push(cp.posto.nome)
+          })
+        } else if (c.posto?.nome) {
+          postosDoColab.push(c.posto.nome)
+        }
+
+        if (postosDoColab.length === 0) {
+          postosDoColab.push('Sem Posto / Base')
+        }
+
+        // Cada posto vinculado ao colaborador recebe +1 na contagem do posto
+        postosDoColab.forEach((pNome) => {
+          colabPostoMap[pNome] = (colabPostoMap[pNome] || 0) + 1
+        })
       })
       const colabsByPosto = Object.entries(colabPostoMap)
         .map(([postoNome, count]) => ({ postoNome, count }))

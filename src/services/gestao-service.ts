@@ -23,14 +23,13 @@ export const colaboradoresService = {
   ) {
     let query = supabase
       .from('colaboradores')
-      .select('*, empresa:empresas(*), posto:postos(*), escala:escalas(*)')
+      .select(
+        '*, empresa:empresas(*), posto:postos(*), escala:escalas(*), colaboradores_postos(id, posto_id, posto:postos(*))',
+      )
       .order('nome', { ascending: true })
 
     if (empresaId && empresaId !== 'consolidado') {
       query = query.eq('empresa_id', empresaId)
-    }
-    if (options?.postoId && options.postoId !== 'todos') {
-      query = query.eq('posto_id', options.postoId)
     }
     if (options?.status && options.status !== 'todos') {
       query = query.eq('status', options.status)
@@ -43,24 +42,74 @@ export const colaboradoresService = {
 
     const { data, error } = await query
     if (error) throw error
-    return (data as Colaborador[]) || []
+
+    let colabs = ((data as any[]) || []).map((c) => {
+      const vinculados: Posto[] = (c.colaboradores_postos || [])
+        .map((cp: any) => cp.posto)
+        .filter(Boolean)
+
+      // Se não há postos na junção mas tem c.posto, adiciona para compatibilidade
+      if (vinculados.length === 0 && c.posto) {
+        vinculados.push(c.posto)
+      }
+
+      return {
+        ...c,
+        postos_vinculados: vinculados,
+      } as Colaborador
+    })
+
+    if (options?.postoId && options.postoId !== 'todos') {
+      const pid = options.postoId
+      colabs = colabs.filter(
+        (c) =>
+          c.posto_id === pid ||
+          (c.postos_vinculados && c.postos_vinculados.some((p) => p.id === pid)),
+      )
+    }
+
+    return colabs
   },
 
   async getById(id: string) {
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('*, empresa:empresas(*), posto:postos(*), escala:escalas(*)')
+      .select(
+        '*, empresa:empresas(*), posto:postos(*), escala:escalas(*), colaboradores_postos(id, posto_id, posto:postos(*))',
+      )
       .eq('id', id)
       .single()
     if (error) throw error
-    return data as Colaborador
+
+    const c = data as any
+    const vinculados: Posto[] = (c.colaboradores_postos || [])
+      .map((cp: any) => cp.posto)
+      .filter(Boolean)
+
+    if (vinculados.length === 0 && c.posto) {
+      vinculados.push(c.posto)
+    }
+
+    return {
+      ...c,
+      postos_vinculados: vinculados,
+    } as Colaborador
   },
 
-  async create(payload: Partial<Colaborador>) {
+  async create(payload: Partial<Colaborador> & { postos_ids?: string[] }) {
     const cleanPayload = { ...payload }
+    const postosIds = cleanPayload.postos_ids
+    delete cleanPayload.postos_ids
     delete (cleanPayload as any).empresa
     delete (cleanPayload as any).posto
+    delete (cleanPayload as any).postos_vinculados
+    delete (cleanPayload as any).colaboradores_postos
     delete (cleanPayload as any).escala
+
+    // Se postosIds foi enviado, garante que posto_id principal seja o primeiro ou o existente
+    if (postosIds && postosIds.length > 0 && !cleanPayload.posto_id) {
+      cleanPayload.posto_id = postosIds[0]
+    }
 
     const { data, error } = await supabase
       .from('colaboradores')
@@ -68,12 +117,25 @@ export const colaboradoresService = {
       .select()
       .single()
     if (error) throw error
+
+    // Sincroniza vínculos na tabela de junção
+    const finalPostoIds = postosIds !== undefined ? postosIds : data.posto_id ? [data.posto_id] : []
+    if (finalPostoIds.length > 0) {
+      const rows = finalPostoIds.map((pid) => ({
+        colaborador_id: data.id,
+        posto_id: pid,
+      }))
+      await supabase
+        .from('colaboradores_postos')
+        .upsert(rows, { onConflict: 'colaborador_id,posto_id' })
+    }
+
     return data as Colaborador
   },
 
   async update(
     id: string,
-    payload: Partial<Colaborador>,
+    payload: Partial<Colaborador> & { postos_ids?: string[] },
     auditInfo?: {
       previous: Partial<Colaborador>
       userId?: string
@@ -82,9 +144,24 @@ export const colaboradoresService = {
     },
   ) {
     const cleanPayload = { ...payload }
+    const postosIds = cleanPayload.postos_ids
+    delete cleanPayload.postos_ids
     delete (cleanPayload as any).empresa
     delete (cleanPayload as any).posto
+    delete (cleanPayload as any).postos_vinculados
+    delete (cleanPayload as any).colaboradores_postos
     delete (cleanPayload as any).escala
+
+    if (postosIds !== undefined) {
+      if (postosIds.length > 0) {
+        // Se o posto_id atual não está entre os selecionados, define o primeiro como principal
+        if (!cleanPayload.posto_id || !postosIds.includes(cleanPayload.posto_id)) {
+          cleanPayload.posto_id = postosIds[0]
+        }
+      } else {
+        cleanPayload.posto_id = null
+      }
+    }
 
     const { data, error } = await supabase
       .from('colaboradores')
@@ -93,6 +170,29 @@ export const colaboradoresService = {
       .select()
       .single()
     if (error) throw error
+
+    // Sincroniza postos_ids se fornecido
+    if (postosIds !== undefined) {
+      // 1. Remove os que não estão mais na lista
+      if (postosIds.length === 0) {
+        await supabase.from('colaboradores_postos').delete().eq('colaborador_id', id)
+      } else {
+        await supabase
+          .from('colaboradores_postos')
+          .delete()
+          .eq('colaborador_id', id)
+          .not('posto_id', 'in', `(${postosIds.join(',')})`)
+
+        // 2. Insere os novos
+        const rows = postosIds.map((pid) => ({
+          colaborador_id: id,
+          posto_id: pid,
+        }))
+        await supabase
+          .from('colaboradores_postos')
+          .upsert(rows, { onConflict: 'colaborador_id,posto_id' })
+      }
+    }
 
     // Record audit history if changes are provided
     if (auditInfo && auditInfo.previous) {
@@ -249,6 +349,7 @@ export const escalasService = {
     if (empresaId && empresaId !== 'consolidado') {
       query = query.eq('empresa_id', empresaId)
     }
+
     const { data, error } = await query
     if (error) throw error
     return (data as Escala[]) || []
@@ -268,7 +369,16 @@ export const escalasService = {
     return data as Escala
   },
 
-  async update(id: string, payload: Partial<Escala>) {
+  async update(
+    id: string,
+    payload: Partial<Escala>,
+    auditInfo?: {
+      previous: Partial<Escala>
+      userId?: string
+      userName?: string
+      motivo?: string
+    },
+  ) {
     const cleanPayload = { ...payload }
     delete (cleanPayload as any).empresa
     delete (cleanPayload as any).posto
@@ -280,6 +390,37 @@ export const escalasService = {
       .select()
       .single()
     if (error) throw error
+
+    // Registro no histórico de auditoria se houver alteração
+    if (auditInfo && auditInfo.previous) {
+      const keyFields: (keyof Escala)[] = [
+        'nome',
+        'tipo',
+        'par_impar',
+        'periodo',
+        'hora_entrada',
+        'hora_saida',
+        'observacoes',
+      ]
+      for (const field of keyFields) {
+        const prevVal = String(auditInfo.previous[field] ?? '')
+        const newVal = String(payload[field] ?? '')
+        if (payload[field] !== undefined && prevVal !== newVal) {
+          await historicoService.log({
+            empresa_id: data.empresa_id,
+            tabela: 'escalas',
+            registro_id: id,
+            campo: String(field),
+            valor_anterior: prevVal,
+            valor_novo: newVal,
+            motivo: auditInfo.motivo || 'Alteração de escala / paridade base',
+            usuario_id: auditInfo.userId,
+            usuario_nome: auditInfo.userName || 'Administrador',
+          })
+        }
+      }
+    }
+
     return data as Escala
   },
 }

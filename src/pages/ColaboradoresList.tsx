@@ -401,7 +401,9 @@ export default function ColaboradoresList() {
                                 <span className="text-slate-300">•</span>
                                 <span className="inline-flex items-center gap-1 text-slate-600 truncate">
                                   <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                                  {c.posto?.nome || 'Base / Sem posto'}
+                                  {c.postos_vinculados && c.postos_vinculados.length > 0
+                                    ? c.postos_vinculados.map((p) => p.nome).join(', ')
+                                    : c.posto?.nome || 'Base / Sem posto'}
                                 </span>
                               </div>
                             </div>
@@ -607,8 +609,32 @@ export default function ColaboradoresList() {
                       )}
                     </TableCell>
 
-                    <TableCell className="py-2.5 text-xs text-slate-700">
-                      {c.posto?.nome ? (
+                    <TableCell className="py-2.5 text-xs text-slate-700 max-w-[200px]">
+                      {c.postos_vinculados && c.postos_vinculados.length > 0 ? (
+                        c.postos_vinculados.length === 1 ? (
+                          <span className="font-medium text-slate-800">
+                            {c.postos_vinculados[0].nome}
+                          </span>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span
+                              className="font-medium text-slate-800 block truncate"
+                              title={c.postos_vinculados.map((p) => p.nome).join(', ')}
+                            >
+                              {c.postos_vinculados[0].nome}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1 py-0 bg-amber-50 text-amber-800 border-amber-200"
+                            >
+                              +{c.postos_vinculados.length - 1}{' '}
+                              {c.postos_vinculados.length - 1 === 1
+                                ? 'outro posto'
+                                : 'outros postos'}
+                            </Badge>
+                          </div>
+                        )
+                      ) : c.posto?.nome ? (
                         <span className="font-medium text-slate-800">{c.posto.nome}</span>
                       ) : (
                         <span className="text-slate-400 italic">Base / Sem alocação</span>

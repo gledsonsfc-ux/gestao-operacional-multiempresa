@@ -57,6 +57,7 @@ export default function ColaboradorForm() {
   const [email, setEmail] = useState('')
   const [cargo, setCargo] = useState('Vigilante')
   const [postoId, setPostoId] = useState<string>('none')
+  const [selectedPostosIds, setSelectedPostosIds] = useState<string[]>([])
   const [dataAdmissao, setDataAdmissao] = useState(new Date().toISOString().split('T')[0])
   const [escalaId, setEscalaId] = useState<string>('none')
   const [horario, setHorario] = useState('07:00 às 19:00')
@@ -165,6 +166,12 @@ export default function ColaboradorForm() {
     try {
       let fotoUrl = null
 
+      // Prepara lista de postos selecionados
+      const finalPostos = [...selectedPostosIds]
+      if (postoId !== 'none' && !finalPostos.includes(postoId)) {
+        finalPostos.unshift(postoId)
+      }
+
       // 1. Create collaborator
       const newColab = await colaboradoresService.create({
         empresa_id: empresaId,
@@ -174,7 +181,8 @@ export default function ColaboradorForm() {
         telefone: telefone ? formatPhone(telefone) : null,
         email: email.trim() || null,
         cargo: cargo.trim(),
-        posto_id: postoId !== 'none' ? postoId : null,
+        posto_id: postoId !== 'none' ? postoId : finalPostos[0] || null,
+        postos_ids: finalPostos,
         data_admissao: dataAdmissao,
         escala_id: escalaId !== 'none' ? escalaId : null,
         horario: horario.trim() || null,
@@ -432,10 +440,18 @@ export default function ColaboradorForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Posto de Trabalho</Label>
-              <Select value={postoId} onValueChange={setPostoId}>
+              <Label className="text-xs font-semibold text-slate-700">Posto Principal</Label>
+              <Select
+                value={postoId}
+                onValueChange={(val) => {
+                  setPostoId(val)
+                  if (val !== 'none' && !selectedPostosIds.includes(val)) {
+                    setSelectedPostosIds([...selectedPostosIds, val])
+                  }
+                }}
+              >
                 <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Selecione o posto" />
+                  <SelectValue placeholder="Selecione o posto principal" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Base / Sem Posto Definido</SelectItem>
@@ -446,6 +462,64 @@ export default function ColaboradorForm() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Multi-select de Postos de Atuação */}
+            <div className="col-span-1 sm:col-span-2 lg:col-span-3 space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-800">
+                  Postos de Atuação (Vínculo a Múltiplos Postos)
+                </Label>
+                <span className="text-[11px] text-slate-500">
+                  {selectedPostosIds.length} posto(s) selecionado(s)
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Selecione todos os postos e clientes em que este colaborador atua na operação.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
+                {postos.map((p) => {
+                  const isChecked = selectedPostosIds.includes(p.id)
+                  const isPrincipal = postoId === p.id
+                  return (
+                    <label
+                      key={p.id}
+                      className={`flex items-start gap-2 p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                        isChecked
+                          ? 'bg-amber-50/80 border-amber-300 text-slate-900 font-medium'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPostosIds([...selectedPostosIds, p.id])
+                            if (postoId === 'none') setPostoId(p.id)
+                          } else {
+                            const updated = selectedPostosIds.filter((id) => id !== p.id)
+                            setSelectedPostosIds(updated)
+                            if (postoId === p.id) {
+                              setPostoId(updated[0] || 'none')
+                            }
+                          }
+                        }}
+                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold text-slate-800">{p.nome}</div>
+                        <div className="text-[10px] text-slate-500 truncate">{p.cliente}</div>
+                        {isPrincipal && (
+                          <span className="inline-block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
+                            Principal
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
 
             <div className="space-y-1.5">

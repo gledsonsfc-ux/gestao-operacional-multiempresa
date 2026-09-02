@@ -25,6 +25,15 @@ export interface UserProfile {
   created_at?: string
 }
 
+export interface ColaboradorPosto {
+  id: string
+  colaborador_id: string
+  posto_id: string
+  created_at?: string
+  posto?: Posto
+  colaborador?: Colaborador
+}
+
 export interface Posto {
   id: string
   empresa_id: string
@@ -113,6 +122,8 @@ export interface Colaborador {
   // Joins
   empresa?: Empresa
   posto?: Posto
+  postos_vinculados?: Posto[]
+  colaboradores_postos?: ColaboradorPosto[]
   escala?: Escala
 }
 
