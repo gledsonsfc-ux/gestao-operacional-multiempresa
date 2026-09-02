@@ -35,7 +35,6 @@ interface CompanyBreakdownStats {
   tipo: string
   colaboradoresAtivos: number
   postosAtivos: number
-  escalasAtivas: number
   pendenciasCount: number
 }
 
@@ -89,7 +88,6 @@ export default function Index() {
       tipo: 'servicos',
       colaboradoresAtivos: 0,
       postosAtivos: 0,
-      escalasAtivas: 0,
       pendenciasCount: 0,
     },
     hammerStats: {
@@ -99,7 +97,6 @@ export default function Index() {
       tipo: 'seguranca',
       colaboradoresAtivos: 0,
       postosAtivos: 0,
-      escalasAtivas: 0,
       pendenciasCount: 0,
     },
     recentHoras: [],
@@ -163,15 +160,7 @@ export default function Index() {
       const { data: postosList } = await postosQuery
       const activePostos = (postosList || []).filter((p) => p.ativo !== false)
 
-      // 3. Escalas
-      let escalasQuery = supabase.from('escalas').select('id, ativo, empresa_id')
-      if (!isConsolidado && selectedEmpresaId) {
-        escalasQuery = escalasQuery.eq('empresa_id', selectedEmpresaId)
-      }
-      const { data: escalasList } = await escalasQuery
-      const activeEscalas = (escalasList || []).filter((e) => e.ativo !== false)
-
-      // 4. Horas Extras do mês
+      // 3. Horas Extras do mês
       let heQuery = supabase
         .from('horas_extras')
         .select(
@@ -306,9 +295,6 @@ export default function Index() {
       const intPostos = (postosList || []).filter(
         (p) => p.empresa_id === intId && p.ativo !== false,
       ).length
-      const intEscalas = (escalasList || []).filter(
-        (e) => e.empresa_id === intId && e.ativo !== false,
-      ).length
       const intPendencias =
         trocasPendentesList.filter((t: any) => t.empresa_id === intId).length +
         allHE.filter((h: any) => h.empresa_id === intId && (h.status === 'Pendente' || !h.status))
@@ -318,9 +304,6 @@ export default function Index() {
       const hamColabs = ativos.filter((c: any) => c.empresa_id === hamId).length
       const hamPostos = (postosList || []).filter(
         (p) => p.empresa_id === hamId && p.ativo !== false,
-      ).length
-      const hamEscalas = (escalasList || []).filter(
-        (e) => e.empresa_id === hamId && e.ativo !== false,
       ).length
       const hamPendencias =
         trocasPendentesList.filter((t: any) => t.empresa_id === hamId).length +
@@ -372,7 +355,6 @@ export default function Index() {
           tipo: 'servicos',
           colaboradoresAtivos: intColabs || Math.round(ativos.length / 2),
           postosAtivos: intPostos || 18,
-          escalasAtivas: intEscalas || 12,
           pendenciasCount: intPendencias || 5,
         },
         hammerStats: {
@@ -382,7 +364,6 @@ export default function Index() {
           tipo: 'seguranca',
           colaboradoresAtivos: hamColabs || ativos.length - Math.round(ativos.length / 2),
           postosAtivos: hamPostos || 20,
-          escalasAtivas: hamEscalas || 14,
           pendenciasCount: hamPendencias || 4,
         },
         recentHoras: allHE.slice(0, 5),
@@ -596,14 +577,6 @@ export default function Index() {
                   </div>
                   <div>
                     <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      ESCALAS ATIVAS
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
-                      {stats.hammerStats.escalasAtivas}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                       PENDÊNCIAS
                     </span>
                     <span className="text-xl sm:text-2xl font-black text-rose-600 mt-1 block">
@@ -658,14 +631,6 @@ export default function Index() {
                     </span>
                     <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
                       {stats.inteligenciaStats.postosAtivos}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      ESCALAS ATIVAS
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
-                      {stats.inteligenciaStats.escalasAtivas}
                     </span>
                   </div>
                   <div>

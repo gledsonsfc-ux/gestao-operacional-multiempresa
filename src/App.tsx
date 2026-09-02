@@ -12,7 +12,6 @@ import ColaboradoresList from '@/pages/ColaboradoresList'
 import ColaboradorForm from '@/pages/ColaboradorForm'
 import ColaboradorDetail from '@/pages/ColaboradorDetail'
 import PostosList from '@/pages/PostosList'
-import EscalasList from '@/pages/EscalasList'
 import HorasExtrasList from '@/pages/HorasExtrasList'
 import HoraExtraForm from '@/pages/HoraExtraForm'
 import HorasExtrasConfig from '@/pages/HorasExtrasConfig'
@@ -54,9 +53,6 @@ export default function App() {
 
               {/* Postos */}
               <Route path="postos" element={<PostosList />} />
-
-              {/* Escalas */}
-              <Route path="escalas" element={<EscalasList />} />
 
               {/* Horas Extras */}
               <Route path="horas-extras" element={<HorasExtrasList />} />

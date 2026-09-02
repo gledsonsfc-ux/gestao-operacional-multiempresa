@@ -59,42 +59,6 @@ export type Database = {
           },
         ]
       }
-      colaboradores_postos: {
-        Row: {
-          id: string
-          colaborador_id: string
-          posto_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          colaborador_id: string
-          posto_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          colaborador_id?: string
-          posto_id?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'colaboradores_postos_colaborador_id_fkey'
-            columns: ['colaborador_id']
-            isOneToOne: false
-            referencedRelation: 'colaboradores'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'colaboradores_postos_posto_id_fkey'
-            columns: ['posto_id']
-            isOneToOne: false
-            referencedRelation: 'postos'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       colaboradores: {
         Row: {
           carga_horaria_mensal: number | null
@@ -227,6 +191,42 @@ export type Database = {
           },
           {
             foreignKeyName: 'colaboradores_posto_id_fkey'
+            columns: ['posto_id']
+            isOneToOne: false
+            referencedRelation: 'postos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      colaboradores_postos: {
+        Row: {
+          colaborador_id: string
+          created_at: string
+          id: string
+          posto_id: string
+        }
+        Insert: {
+          colaborador_id: string
+          created_at?: string
+          id?: string
+          posto_id: string
+        }
+        Update: {
+          colaborador_id?: string
+          created_at?: string
+          id?: string
+          posto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'colaboradores_postos_colaborador_id_fkey'
+            columns: ['colaborador_id']
+            isOneToOne: false
+            referencedRelation: 'colaboradores'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'colaboradores_postos_posto_id_fkey'
             columns: ['posto_id']
             isOneToOne: false
             referencedRelation: 'postos'
