@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useEffect, useState, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useEmpresa } from '@/hooks/use-empresa'
 import { colaboradoresService, postosService } from '@/services/gestao-service'
 import { Colaborador, Posto } from '@/types/gestao'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,14 +28,13 @@ import {
   Users,
   Shield,
   Briefcase,
-  AlertTriangle,
-  FileCheck,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Eye,
   Edit,
   Upload,
+  X,
+  MapPin,
 } from 'lucide-react'
 import { formatCPF, cleanCPF, normalizeSearchText } from '@/lib/formatters'
 import { ImportColaboradoresModal } from '@/components/ImportColaboradoresModal'
@@ -44,7 +43,8 @@ export default function ColaboradoresList() {
   const { selectedEmpresaId, isConsolidado } = useEmpresa()
   const navigate = useNavigate()
 
-  const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
+  // Full list of colaboradores in the current company context (used for autocomplete and table)
+  const [allColaboradores, setAllColaboradores] = useState<Colaborador[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [loading, setLoading] = useState(true)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
@@ -55,6 +55,11 @@ export default function ColaboradoresList() {
   const [selectedStatus, setSelectedStatus] = useState('todos')
   const [includeInativos, setIncludeInativos] = useState(false)
 
+  // Autocomplete dropdown state
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   // Pagination (Scalable for 300+ employees)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -63,13 +68,10 @@ export default function ColaboradoresList() {
     setLoading(true)
     try {
       const [colabsData, postosData] = await Promise.all([
-        colaboradoresService.list(selectedEmpresaId, {
-          postoId: selectedPosto,
-          status: selectedStatus,
-        }),
+        colaboradoresService.list(selectedEmpresaId),
         postosService.list(selectedEmpresaId),
       ])
-      setColaboradores(colabsData)
+      setAllColaboradores(colabsData)
       setPostos(postosData)
     } catch (err) {
       console.error('Erro ao listar colaboradores:', err)
@@ -80,52 +82,100 @@ export default function ColaboradoresList() {
 
   useEffect(() => {
     loadData()
-  }, [selectedEmpresaId, selectedPosto, selectedStatus])
+  }, [selectedEmpresaId])
+
+  // Close dropdown on click outside or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   // Reset pagination when search term or filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedPosto, selectedStatus, includeInativos, selectedEmpresaId])
 
-  // Filter list locally with real-time, accent-tolerant, case-insensitive, and clean-CPF search
-  const filteredList = colaboradores.filter((c) => {
-    // 1. Inativos toggle filter
-    if (!includeInativos && selectedStatus === 'todos' && c.status === 'Inativo') {
-      return false
-    }
+  // Helper filter function for search term matching
+  const matchesSearch = (c: Colaborador, query: string) => {
+    if (!query.trim()) return true
 
-    // 2. Real-time search filter
-    if (searchTerm.trim()) {
-      const normalizedQuery = normalizeSearchText(searchTerm)
-      const cleanQueryDigits = cleanCPF(searchTerm)
+    const normalizedQuery = normalizeSearchText(query)
+    const cleanQueryDigits = cleanCPF(query)
 
-      // Normalize candidate fields
-      const normNome = normalizeSearchText(c.nome)
-      const normCargo = normalizeSearchText(c.cargo)
-      const normCodigoRH = normalizeSearchText(c.codigo_rh)
-      const normCpf = normalizeSearchText(c.cpf)
-      const cleanCpfDigits = cleanCPF(c.cpf || '')
+    const normNome = normalizeSearchText(c.nome)
+    const normCargo = normalizeSearchText(c.cargo)
+    const normCodigoRH = normalizeSearchText(c.codigo_rh)
+    const normCpf = normalizeSearchText(c.cpf)
+    const cleanCpfDigits = cleanCPF(c.cpf || '')
+    const normEmpresa = normalizeSearchText(c.empresa?.nome)
+    const normPosto = normalizeSearchText(c.posto?.nome)
 
-      const matchesNome = normNome.includes(normalizedQuery)
-      const matchesCargo = normCargo.includes(normalizedQuery)
-      const matchesCodigoRH = normCodigoRH.includes(normalizedQuery)
-      const matchesCpfRaw = normCpf.includes(normalizedQuery)
-      const matchesCpfDigits =
-        cleanQueryDigits.length > 0 && cleanCpfDigits.includes(cleanQueryDigits)
+    const matchesNome = normNome.includes(normalizedQuery)
+    const matchesCargo = normCargo.includes(normalizedQuery)
+    const matchesCodigoRH = normCodigoRH.includes(normalizedQuery)
+    const matchesCpfRaw = normCpf.includes(normalizedQuery)
+    const matchesCpfDigits =
+      cleanQueryDigits.length > 0 && cleanCpfDigits.includes(cleanQueryDigits)
+    const matchesEmpresa = normEmpresa.includes(normalizedQuery)
+    const matchesPosto = normPosto.includes(normalizedQuery)
 
-      if (
-        !matchesNome &&
-        !matchesCargo &&
-        !matchesCodigoRH &&
-        !matchesCpfRaw &&
-        !matchesCpfDigits
-      ) {
+    return (
+      matchesNome ||
+      matchesCargo ||
+      matchesCodigoRH ||
+      matchesCpfRaw ||
+      matchesCpfDigits ||
+      matchesEmpresa ||
+      matchesPosto
+    )
+  }
+
+  // Autocomplete dropdown results: ALL employees in company context, filtered in real-time by search
+  const dropdownResults = useMemo(() => {
+    return allColaboradores.filter((c) => matchesSearch(c, searchTerm))
+  }, [allColaboradores, searchTerm])
+
+  // Main table filtered list
+  const filteredList = useMemo(() => {
+    return allColaboradores.filter((c) => {
+      // 1. Posto filter
+      if (selectedPosto !== 'todos' && c.posto_id !== selectedPosto) {
         return false
       }
-    }
 
-    return true
-  })
+      // 2. Status filter
+      if (selectedStatus !== 'todos' && c.status !== selectedStatus) {
+        return false
+      }
+
+      // 3. Inativos toggle filter (when status is 'todos' and inativos not included)
+      if (!includeInativos && selectedStatus === 'todos' && c.status === 'Inativo') {
+        return false
+      }
+
+      // 4. Real-time search filter
+      return matchesSearch(c, searchTerm)
+    })
+  }, [allColaboradores, selectedPosto, selectedStatus, includeInativos, searchTerm])
 
   const totalRecords = filteredList.length
   const totalPages = Math.ceil(totalRecords / pageSize) || 1
@@ -192,18 +242,156 @@ export default function ColaboradoresList() {
       </div>
 
       {/* Filters Card */}
-      <Card className="border-slate-200 bg-white shadow-sm">
-        <CardContent className="p-4 space-y-3">
+      <Card className="border-slate-200 bg-white shadow-sm overflow-visible z-20">
+        <CardContent className="p-4 space-y-3 overflow-visible">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            {/* Search with Autocomplete Dropdown */}
+            <div className="relative" ref={searchContainerRef}>
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 z-10 pointer-events-none" />
               <Input
+                ref={searchInputRef}
                 placeholder="Buscar por nome, CPF, cargo ou código RH..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 text-xs h-9"
+                onFocus={() => setIsDropdownOpen(true)}
+                onClick={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setIsDropdownOpen(true)
+                }}
+                className="pl-9 pr-8 text-xs h-9 bg-white"
+                autoComplete="off"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 z-10"
+                  title="Limpar busca"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Autocomplete Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto min-w-[320px] sm:min-w-[420px]">
+                  <div className="p-2 border-b border-slate-100 bg-slate-50/90 sticky top-0 flex items-center justify-between text-[11px] text-slate-600 font-medium z-10 backdrop-blur-xs">
+                    <span>
+                      {dropdownResults.length === allColaboradores.length
+                        ? `Todos os colaboradores cadastrados (${dropdownResults.length})`
+                        : `${dropdownResults.length} colaborador(es) encontrado(s)`}
+                    </span>
+                    <span className="text-[10px] text-slate-400">Clique para abrir a ficha</span>
+                  </div>
+
+                  {dropdownResults.length === 0 ? (
+                    <div className="py-8 px-4 text-center text-slate-400 text-xs">
+                      <Users className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
+                      Nenhum colaborador corresponde à busca "{searchTerm}".
+                    </div>
+                  ) : (
+                    <div className="py-1 divide-y divide-slate-100">
+                      {dropdownResults.map((c) => {
+                        const isSeguranca =
+                          c.empresa?.tipo === 'seguranca' ||
+                          c.empresa?.nome.toLowerCase().includes('hammer')
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => {
+                              setIsDropdownOpen(false)
+                              navigate(`/colaboradores/${c.id}`)
+                            }}
+                            className="px-3 py-2 hover:bg-amber-50/70 cursor-pointer transition-colors flex items-center gap-3 group"
+                          >
+                            {/* Avatar */}
+                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 shrink-0 overflow-hidden group-hover:border-amber-400 group-hover:bg-amber-100 transition-colors">
+                              {c.foto_url ? (
+                                <img
+                                  src={c.foto_url}
+                                  alt={c.nome}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                c.nome.charAt(0)
+                              )}
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-xs text-slate-900 group-hover:text-amber-700 truncate transition-colors">
+                                  {c.nome}
+                                </span>
+                                {c.status && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[9px] px-1.5 py-0 shrink-0 font-medium ${
+                                      c.status === 'Ativo'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : c.status === 'Inativo'
+                                          ? 'bg-slate-100 text-slate-600 border-slate-200'
+                                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                                    }`}
+                                  >
+                                    {c.status}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Cargo + CPF/RH */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600 mt-0.5">
+                                <span className="font-medium text-slate-800">{c.cargo}</span>
+                                {c.codigo_rh && (
+                                  <>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="font-mono text-[10px] bg-slate-100 px-1 py-0.2 rounded text-slate-600">
+                                      RH: {c.codigo_rh}
+                                    </span>
+                                  </>
+                                )}
+                                {c.cpf && (
+                                  <>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="font-mono text-[10px] text-slate-500">
+                                      {formatCPF(c.cpf)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Empresa & Posto */}
+                              <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 mt-1">
+                                <span className="inline-flex items-center gap-1 font-medium text-slate-700">
+                                  {isSeguranca ? (
+                                    <Shield className="w-2.5 h-2.5 text-emerald-600" />
+                                  ) : (
+                                    <Briefcase className="w-2.5 h-2.5 text-sky-600" />
+                                  )}
+                                  {c.empresa?.nome || 'Empresa não vinculada'}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="inline-flex items-center gap-1 text-slate-600 truncate">
+                                  <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                                  {c.posto?.nome || 'Base / Sem posto'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* View button */}
+                            <div className="shrink-0 text-slate-400 group-hover:text-amber-600">
+                              <Eye className="w-4 h-4" />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Posto filter */}
