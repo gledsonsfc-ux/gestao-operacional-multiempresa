@@ -47,6 +47,7 @@ export default function ColaboradoresList() {
   const [allColaboradores, setAllColaboradores] = useState<Colaborador[]>([])
   const [postos, setPostos] = useState<Posto[]>([])
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   // Filters
@@ -66,18 +67,33 @@ export default function ColaboradoresList() {
 
   const loadData = async () => {
     setLoading(true)
-    try {
-      const [colabsData, postosData] = await Promise.all([
-        colaboradoresService.list(selectedEmpresaId),
-        postosService.list(selectedEmpresaId),
-      ])
-      setAllColaboradores(colabsData)
-      setPostos(postosData)
-    } catch (err) {
-      console.error('Erro ao listar colaboradores:', err)
-    } finally {
-      setLoading(false)
+    setErrorMessage(null)
+
+    // Load colaboradores and postos independently to ensure resilience:
+    // If postos query fails, colaboradores still load and display properly
+    const [colabsResult, postosResult] = await Promise.allSettled([
+      colaboradoresService.list(selectedEmpresaId),
+      postosService.list(selectedEmpresaId),
+    ])
+
+    if (colabsResult.status === 'fulfilled') {
+      setAllColaboradores(colabsResult.value || [])
+    } else {
+      console.error('Erro ao listar colaboradores:', colabsResult.reason)
+      setErrorMessage(
+        colabsResult.reason?.message ||
+          'Não foi possível carregar a lista de colaboradores. Verifique a conexão.',
+      )
     }
+
+    if (postosResult.status === 'fulfilled') {
+      setPostos(postosResult.value || [])
+    } else {
+      console.warn('Erro ao carregar postos de serviço (fallback ativado):', postosResult.reason)
+      setPostos([])
+    }
+
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -116,7 +132,7 @@ export default function ColaboradoresList() {
 
   // Helper filter function for search term matching
   const matchesSearch = (c: Colaborador, query: string) => {
-    if (!query.trim()) return true
+    if (!query || !query.trim()) return true
 
     const normalizedQuery = normalizeSearchText(query)
     const cleanQueryDigits = cleanCPF(query)
@@ -128,6 +144,9 @@ export default function ColaboradoresList() {
     const cleanCpfDigits = cleanCPF(c.cpf || '')
     const normEmpresa = normalizeSearchText(c.empresa?.nome)
     const normPosto = normalizeSearchText(c.posto?.nome)
+    const normTurno = normalizeSearchText(c.turno)
+    const normEscala = normalizeSearchText(c.escala?.nome)
+    const normSituacaoRH = normalizeSearchText(c.situacao_rh)
 
     const matchesNome = normNome.includes(normalizedQuery)
     const matchesCargo = normCargo.includes(normalizedQuery)
@@ -137,6 +156,9 @@ export default function ColaboradoresList() {
       cleanQueryDigits.length > 0 && cleanCpfDigits.includes(cleanQueryDigits)
     const matchesEmpresa = normEmpresa.includes(normalizedQuery)
     const matchesPosto = normPosto.includes(normalizedQuery)
+    const matchesTurno = normTurno.includes(normalizedQuery)
+    const matchesEscala = normEscala.includes(normalizedQuery)
+    const matchesSituacaoRH = normSituacaoRH.includes(normalizedQuery)
 
     return (
       matchesNome ||
@@ -145,7 +167,10 @@ export default function ColaboradoresList() {
       matchesCpfRaw ||
       matchesCpfDigits ||
       matchesEmpresa ||
-      matchesPosto
+      matchesPosto ||
+      matchesTurno ||
+      matchesEscala ||
+      matchesSituacaoRH
     )
   }
 
@@ -473,14 +498,53 @@ export default function ColaboradoresList() {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-10 text-xs text-slate-500">
-                    Carregando colaboradores...
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      <span>Carregando colaboradores...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : errorMessage ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center py-12 text-xs text-rose-600">
+                    <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                      <span className="font-semibold text-sm">Falha ao carregar colaboradores</span>
+                      <p className="text-slate-500 text-xs">{errorMessage}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadData}
+                        className="mt-2 text-xs border-slate-300"
+                      >
+                        Tentar novamente
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : paginatedList.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-12 text-xs text-slate-400">
                     <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    Nenhum colaborador encontrado com os filtros selecionados.
+                    {searchTerm ? (
+                      <div className="space-y-1">
+                        <p className="font-medium text-slate-600">
+                          Nenhum colaborador encontrado para "{searchTerm}".
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Tente buscar por outro termo ou clique no "X" para limpar a busca.
+                        </p>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => setSearchTerm('')}
+                          className="text-xs text-amber-600 font-semibold h-auto p-0 mt-1"
+                        >
+                          Limpar busca
+                        </Button>
+                      </div>
+                    ) : (
+                      'Nenhum colaborador encontrado com os filtros selecionados.'
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
